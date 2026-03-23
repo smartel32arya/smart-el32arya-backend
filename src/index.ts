@@ -18,10 +18,13 @@ app.use('/api/auth', authRouter);
 app.use('/api/admin/properties', authenticate as RequestHandler, adminPropertiesRouter);
 app.use('/api/admin/users', adminUsersRouter);
 
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+if (!process.env.VERCEL) {
+  connectDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   });
-});
+}
 
 export { app };
+export default app;
