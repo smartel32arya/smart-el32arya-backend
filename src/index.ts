@@ -1,4 +1,4 @@
-import express, { RequestHandler } from 'express';
+import express, { RequestHandler, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { PORT } from './config';
 import { connectDB } from './db';
@@ -17,6 +17,12 @@ app.use('/api/properties', propertiesRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/admin/properties', authenticate as RequestHandler, adminPropertiesRouter);
 app.use('/api/admin/users', adminUsersRouter);
+
+// Global error logger
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error(`[ERROR] ${req.method} ${req.url} -`, err.message, err.stack);
+  res.status(500).json({ error: err.message });
+});
 
 if (!process.env.VERCEL) {
   connectDB().then(() => {
