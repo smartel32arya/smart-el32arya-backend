@@ -17,10 +17,10 @@ app.use(morgan('dev'));
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/properties', propertiesRouter);
-app.use('/api/auth', authRouter);
-app.use('/api/admin/properties', authenticate as RequestHandler, adminPropertiesRouter);
-app.use('/api/admin/users', adminUsersRouter);
+app.use('/api/properties', async (req, res, next) => { await connectDB(); next(); }, propertiesRouter);
+app.use('/api/auth', async (req, res, next) => { await connectDB(); next(); }, authRouter);
+app.use('/api/admin/properties', authenticate as RequestHandler, async (req, res, next) => { await connectDB(); next(); }, adminPropertiesRouter);
+app.use('/api/admin/users', async (req, res, next) => { await connectDB(); next(); }, adminUsersRouter);
 
 // Global error logger
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
