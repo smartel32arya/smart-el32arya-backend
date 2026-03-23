@@ -1,5 +1,7 @@
 import express, { RequestHandler, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
 import { PORT } from './config';
 import { connectDB } from './db';
 import { propertiesRouter } from './routes/properties';
@@ -10,6 +12,8 @@ import { authenticate } from './middleware/authenticate';
 
 const app = express();
 
+app.use(helmet());
+app.use(morgan('dev'));
 app.use(cors());
 app.use(express.json());
 
@@ -20,7 +24,7 @@ app.use('/api/admin/users', adminUsersRouter);
 
 // Global error logger
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(`[ERROR] ${req.method} ${req.url} -`, err.message, err.stack);
+  console.error(`[ERROR] ${req.method} ${req.url} - ${err.message}`);
   res.status(500).json({ error: err.message });
 });
 
