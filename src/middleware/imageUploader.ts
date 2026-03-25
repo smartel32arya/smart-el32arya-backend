@@ -69,6 +69,27 @@ export async function uploadVideoToCloudinary(buffer: Buffer): Promise<string> {
   })
 }
 
+// Extract Cloudinary public_id from a secure URL
+function publicIdFromUrl(url: string, resourceType: 'image' | 'video' = 'image'): string {
+  // e.g. https://res.cloudinary.com/<cloud>/image/upload/v123/folder/name.ext
+  const match = url.match(/\/(?:image|video|raw)\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/)
+  return match ? match[1] : url
+}
+
+// Delete a file from Cloudinary by its secure URL (fire-and-forget safe)
+export async function deleteFromCloudinary(
+  url: string,
+  resourceType: 'image' | 'video' = 'image'
+): Promise<void> {
+  try {
+    const publicId = publicIdFromUrl(url, resourceType)
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType })
+  } catch {
+    // Non-fatal — log but don't throw
+    console.warn(`[Cloudinary] Failed to delete ${url}`)
+  }
+}
+
 export const handleUploadError = (err: unknown, _req: Request, res: Response, next: NextFunction): void => {
   if (err instanceof MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
