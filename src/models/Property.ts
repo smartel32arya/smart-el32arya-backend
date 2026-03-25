@@ -9,13 +9,14 @@ export interface IProperty {
   price: number
   priceFormatted: string
   location: string
-  neighborhood: 'حي الزهراء' | 'الحي الثامن' | 'الحي الأول' | 'المحور المركزي'
-  type: 'شقة' | 'فيلا' | 'دوبلكس' | 'تجاري'
+  neighborhood: string
+  type: string
   bedrooms: number
   bathrooms: number
   area: number
   image: string
   images: string[]
+  video: string | null
   amenities: string[]
   featured: boolean
   active: boolean
@@ -30,21 +31,14 @@ const PropertySchema = new Schema<IProperty & Document>(
     price: { type: Number, required: true },
     priceFormatted: { type: String, default: '' },
     location: { type: String, required: true },
-    neighborhood: {
-      type: String,
-      enum: ['حي الزهراء', 'الحي الثامن', 'الحي الأول', 'المحور المركزي'],
-      required: true,
-    },
-    type: {
-      type: String,
-      enum: ['شقة', 'فيلا', 'دوبلكس', 'تجاري'],
-      required: true,
-    },
+    neighborhood: { type: String, required: true },
+    type: { type: String, required: true },
     bedrooms: { type: Number, required: true },
     bathrooms: { type: Number, required: true },
     area: { type: Number, required: true },
     image: { type: String, default: '' },
     images: { type: [String], default: [] },
+    video: { type: String, default: null },
     amenities: { type: [String], default: [] },
     featured: { type: Boolean, default: false },
     active: { type: Boolean, default: true },

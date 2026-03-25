@@ -1,23 +1,30 @@
 import { Router, Request, Response } from 'express';
 import Property from '../../models/Property';
-import { upload, handleUploadError, uploadToCloudinary } from '../../middleware/imageUploader';
+import { upload, handleUploadError, uploadToCloudinary, uploadVideoToCloudinary } from '../../middleware/imageUploader';
 
 export const adminPropertiesRouter = Router();
 
 // POST / — create a new property (multipart/form-data)
 adminPropertiesRouter.post(
   '/',
-  upload.array('images'),
+  upload.fields([{ name: 'images' }, { name: 'video', maxCount: 1 }]),
   handleUploadError,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const body = req.body;
+      const fields = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
 
-      // Upload files to Cloudinary and collect secure URLs
-      const files = req.files as Express.Multer.File[] | undefined;
-      const images: string[] = files && files.length > 0
-        ? await Promise.all(files.map((f) => uploadToCloudinary(f.buffer, f.mimetype)))
+      // Upload images to Cloudinary
+      const imageFiles = fields?.images ?? [];
+      const images: string[] = imageFiles.length > 0
+        ? await Promise.all(imageFiles.map((f) => uploadToCloudinary(f.buffer, f.mimetype)))
         : [];
+
+      // Upload optional video to Cloudinary
+      const videoFiles = fields?.video ?? [];
+      const video: string | null = videoFiles.length > 0
+        ? await uploadVideoToCloudinary(videoFiles[0].buffer)
+        : null;
 
       // Parse numeric fields
       const price = parseFloat(body.price);
@@ -48,6 +55,7 @@ adminPropertiesRouter.post(
         bathrooms,
         area,
         images,
+        video,
         amenities,
         featured,
         active,
