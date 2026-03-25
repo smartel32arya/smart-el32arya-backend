@@ -25,7 +25,7 @@ app.use('/api/admin/users', async (req, res, next) => { await connectDB(); next(
 // Global error logger
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(`[ERROR] ${req.method} ${req.url} - ${err.message}`);
-  res.status(500).json({ error: err.message });
+  res.status(500).json({ message: 'حدث خطأ داخلي في الخادم' });
 });
 
 if (!process.env.VERCEL) {

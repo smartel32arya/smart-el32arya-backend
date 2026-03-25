@@ -30,9 +30,14 @@ propertiesRouter.get('/:id', async (req: Request, res: Response) => {
 // GET /
 propertiesRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const { neighborhood, type, priceRange, sort, page: pageQ, pageSize: pageSizeQ } = req.query
+    const { neighborhood, type, priceRange, sort, page: pageQ, pageSize: pageSizeQ, isActive } = req.query
 
-    const filter: Record<string, unknown> = { active: true }
+    const filter: Record<string, unknown> = {}
+    if (isActive === 'false') {
+      filter.active = false
+    } else {
+      filter.active = true
+    }
 
     if (neighborhood) filter.neighborhood = neighborhood
     if (type) filter.type = type

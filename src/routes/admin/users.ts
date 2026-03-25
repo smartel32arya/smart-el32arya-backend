@@ -24,9 +24,9 @@ const createUserSchema = z.object({
 })
 
 const updateUserSchema = z.object({
-  name: z.string().min(2).optional(),
-  username: z.string().min(3).regex(usernameRegex).optional(),
-  password: z.string().min(6).optional(),
+  name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').optional(),
+  username: z.string().min(3, 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل').regex(usernameRegex, 'اسم المستخدم يجب أن يحتوي على أحرف وأرقام وشرطة سفلية فقط').optional(),
+  password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل').optional(),
   role: z.enum(['super_admin', 'property_admin']).optional(),
   active: z.boolean().optional(),
 })
@@ -145,7 +145,7 @@ adminUsersRouter.delete(
         return
       }
 
-      res.json({ message: 'deleted' })
+      res.json({ message: 'تم حذف المستخدم بنجاح' })
     } catch {
       res.status(500).json({ message: 'حدث خطأ أثناء حذف المستخدم' })
     }
