@@ -33,7 +33,7 @@ adminPropertiesRouter.post(
         : null;
 
       // Parse numeric fields
-      const price = parseFloat(body.price);
+      const price = body.price != null && body.price !== '' ? parseFloat(body.price) : undefined;
       const bedrooms = parseInt(body.bedrooms, 10);
       const bathrooms = parseInt(body.bathrooms, 10);
       const area = parseFloat(body.area);
@@ -129,7 +129,7 @@ adminPropertiesRouter.put(
       }
 
       // --- Scalar fields ---
-      const price = parseInt(body.price, 10);
+      const price = body.price != null && body.price !== '' ? parseInt(body.price, 10) : undefined;
       const bedrooms = parseInt(body.bedrooms, 10);
       const bathrooms = parseInt(body.bathrooms, 10);
       const area = parseInt(body.area, 10);
@@ -149,7 +149,7 @@ adminPropertiesRouter.put(
 
       property.title = body.title;
       property.description = body.description;
-      property.price = price;
+      if (price !== undefined) property.price = price;
       property.neighborhood = body.neighborhood;
       property.type = body.type;
       property.location = body.location ?? property.location;

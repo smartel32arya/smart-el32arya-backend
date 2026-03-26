@@ -6,7 +6,7 @@ export interface IProperty {
   id: string
   title: string
   description: string
-  price: number
+  price?: number
   priceFormatted: string
   location: string
   neighborhood: string
@@ -28,7 +28,7 @@ const PropertySchema = new Schema<IProperty & Document>(
     id: { type: String, default: uuidv4 },
     title: { type: String, required: true },
     description: { type: String, required: true },
-    price: { type: Number, required: true },
+    price: { type: Number, required: false },
     priceFormatted: { type: String, default: '' },
     location: { type: String, required: true },
     neighborhood: { type: String, required: true },
@@ -59,7 +59,7 @@ PropertySchema.pre('save', function (next) {
   if (this.images && this.images.length > 0) {
     this.image = this.images[0]
   }
-  this.priceFormatted = formatPrice(this.price)
+  this.priceFormatted = this.price != null ? formatPrice(this.price) : ''
   next()
 })
 
