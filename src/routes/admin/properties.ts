@@ -33,7 +33,7 @@ adminPropertiesRouter.post(
         : null;
 
       // Parse numeric fields
-      const price = body.price != null && body.price !== '' ? parseFloat(body.price) : undefined;
+      const price = parseFloat(body.price);
       const bedrooms = parseInt(body.bedrooms, 10);
       const bathrooms = parseInt(body.bathrooms, 10);
       const area = parseFloat(body.area);
@@ -41,6 +41,7 @@ adminPropertiesRouter.post(
       // Parse boolean fields
       const featured = body.featured === 'true';
       const active = body.active === 'true';
+      const showPrice = body.showPrice !== 'false';
 
       // Parse amenities
       let amenities: string[] = [];
@@ -65,6 +66,7 @@ adminPropertiesRouter.post(
         amenities,
         featured,
         active,
+        showPrice,
       });
 
       await property.save();
@@ -129,12 +131,13 @@ adminPropertiesRouter.put(
       }
 
       // --- Scalar fields ---
-      const price = body.price != null && body.price !== '' ? parseInt(body.price, 10) : undefined;
+      const price = parseInt(body.price, 10);
       const bedrooms = parseInt(body.bedrooms, 10);
       const bathrooms = parseInt(body.bathrooms, 10);
       const area = parseInt(body.area, 10);
       const featured = body.featured === 'true';
       const active = body.active === 'true';
+      const showPrice = body.showPrice !== 'false';
       let amenities: string[] = [];
       if (body.amenities) {
         amenities = typeof body.amenities === 'string'
@@ -149,7 +152,7 @@ adminPropertiesRouter.put(
 
       property.title = body.title;
       property.description = body.description;
-      if (price !== undefined) property.price = price;
+      property.price = price;
       property.neighborhood = body.neighborhood;
       property.type = body.type;
       property.location = body.location ?? property.location;
@@ -159,6 +162,7 @@ adminPropertiesRouter.put(
       property.amenities = amenities;
       property.featured = featured;
       property.active = active;
+      property.showPrice = showPrice;
       property.images = finalImages;
       property.video = finalVideo;
 
