@@ -120,6 +120,14 @@ export class PropertyService {
             { $limit: pagination.pageSize },
           ],
           count: [{ $count: 'total' }],
+          activeCount: [
+            { $match: { active: true } },
+            { $count: 'total' }
+          ],
+          featuredCount: [
+            { $match: { featured: true } },
+            { $count: 'total' }
+          ],
         },
       },
     ]
@@ -127,6 +135,8 @@ export class PropertyService {
     const [result] = await PropertyModel.aggregate(pipeline as import('mongoose').PipelineStage[])
     const docs = (result?.data ?? []) as (IProperty & { owner: PopulatedUser })[]
     const total: number = result?.count?.[0]?.total ?? 0
+    const totalActive: number = result?.activeCount?.[0]?.total ?? 0
+    const totalFeatured: number = result?.featuredCount?.[0]?.total ?? 0
 
     const data = docs.map((d) => ({
       ...d,
@@ -137,6 +147,8 @@ export class PropertyService {
     return {
       data,
       total,
+      totalActive,
+      totalFeatured,
       page: pagination.page,
       pageSize: pagination.pageSize,
       totalPages: Math.ceil(total / pagination.pageSize),
@@ -174,7 +186,7 @@ export class PropertyService {
   async listPropertiesAdmin(
     filter: PropertyFilter,
     pagination: PropertyPagination,
-  ): Promise<{ data: PropertyAdminView[]; total: number; page: number; pageSize: number; totalPages: number }> {
+  ): Promise<{ data: PropertyAdminView[]; total: number; totalActive: number; totalFeatured: number; page: number; pageSize: number; totalPages: number }> {
     const query: Record<string, unknown> = {}
     if (filter.active !== undefined) query.active = filter.active
     if (filter.neighborhood)        query.neighborhood = filter.neighborhood
@@ -195,15 +207,19 @@ export class PropertyService {
     const sort: Record<string, SortOrder> = filter.sort ? sortMap[filter.sort] : { createdAt: -1 }
     const skip = (pagination.page - 1) * pagination.pageSize
 
-    const [docs, total] = await Promise.all([
+    const [docs, total, totalActive, totalFeatured] = await Promise.all([
       PropertyModel.find(query).sort(sort).skip(skip).limit(pagination.pageSize)
         .populate(ALL_USER_POPULATE).lean(),
       PropertyModel.countDocuments(query),
+      PropertyModel.countDocuments({ ...query, active: true }),
+      PropertyModel.countDocuments({ ...query, featured: true }),
     ])
 
     return {
       data: (docs as unknown as (IProperty & { addedBy: PopulatedUser })[]).map(toAdminView),
       total,
+      totalActive,
+      totalFeatured,
       page: pagination.page,
       pageSize: pagination.pageSize,
       totalPages: Math.ceil(total / pagination.pageSize),

@@ -31,7 +31,7 @@ export class AdminPropertyService {
   async listForSuperAdmin(
     filter: PropertyFilter,
     pagination: PropertyPagination,
-  ): Promise<{ data: PropertyAdminView[]; total: number; page: number; pageSize: number; totalPages: number }> {
+  ): Promise<{ data: PropertyAdminView[]; total: number; totalActive: number; totalFeatured: number; page: number; pageSize: number; totalPages: number }> {
     return propertyService.listPropertiesAdmin(filter, pagination)
   }
 

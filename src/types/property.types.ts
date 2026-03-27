@@ -41,6 +41,8 @@ export interface PropertyPagination {
 export interface PropertyListResult {
   data: PropertyWithContact[]
   total: number
+  totalActive: number
+  totalFeatured: number
   page: number
   pageSize: number
   totalPages: number
