@@ -72,7 +72,7 @@ export class PropertyService {
     if (filter.active !== undefined) query.active = filter.active
     if (filter.neighborhood)        query.neighborhood = filter.neighborhood
     if (filter.type)                query.type = filter.type
-    if (filter.addedBy)             query.addedBy = filter.addedBy
+    if (filter.addedBy)             query.addedBy = new Types.ObjectId(filter.addedBy)
     if (filter.priceMin !== undefined || filter.priceMax !== undefined) {
       query.price = {}
       if (filter.priceMin !== undefined) (query.price as Record<string, number>).$gte = filter.priceMin
@@ -179,7 +179,7 @@ export class PropertyService {
     if (filter.active !== undefined) query.active = filter.active
     if (filter.neighborhood)        query.neighborhood = filter.neighborhood
     if (filter.type)                query.type = filter.type
-    if (filter.addedBy)             query.addedBy = filter.addedBy
+    if (filter.addedBy)             query.addedBy = new Types.ObjectId(filter.addedBy)
     if (filter.priceMin !== undefined || filter.priceMax !== undefined) {
       query.price = {}
       if (filter.priceMin !== undefined) (query.price as Record<string, number>).$gte = filter.priceMin
