@@ -1,11 +1,15 @@
 import { v2 as cloudinary } from 'cloudinary'
-import multer, { FileFilterCallback, MulterError } from 'multer'
+import multer, { FileFilterCallback, MulterError, StorageEngine } from 'multer'
 import { Request, Response, NextFunction } from 'express'
+import { v4 as uuidv4 } from 'uuid'
+import path from 'path'
+import { config } from '../config'
+import { AppError } from '../errors/AppError'
 
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: config.cloudinary.cloudName,
+  api_key:    config.cloudinary.apiKey,
+  api_secret: config.cloudinary.apiSecret,
 })
 
 const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -29,15 +33,46 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCall
   }
 }
 
-// Store in memory — we'll stream buffers to Cloudinary
+// Custom storage engine: stores file in memory (buffer) AND sets a unique filename
+class MemoryStorageWithFilename implements StorageEngine {
+  _handleFile(
+    _req: Request,
+    file: Express.Multer.File,
+    cb: (error?: Error | null, info?: Partial<Express.Multer.File>) => void
+  ) {
+    const chunks: Buffer[] = []
+    file.stream.on('data', (chunk: Buffer) => chunks.push(chunk))
+    file.stream.on('end', () => {
+      const buffer = Buffer.concat(chunks)
+      const ext = path.extname(file.originalname) || ''
+      const filename = `${uuidv4()}${ext}`
+      cb(null, { buffer, filename, size: buffer.length })
+    })
+    file.stream.on('error', cb)
+  }
+
+  _removeFile(
+    _req: Request,
+    _file: Express.Multer.File,
+    cb: (error: Error | null) => void
+  ) {
+    cb(null)
+  }
+}
+
+// Store in memory with unique filename — buffers available for Cloudinary streaming
+// fileSize limit is enforced per-field in handleUploadError since multer applies one limit globally
 export const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: new MemoryStorageWithFilename(),
   fileFilter,
-  limits: { fileSize: MAX_VIDEO_SIZE },
+  limits: { fileSize: MAX_VIDEO_SIZE }, // use the larger limit; image size is validated in uploadToCloudinary
 })
 
 // Upload a single buffer to Cloudinary, returns the secure URL
 export async function uploadToCloudinary(buffer: Buffer, mimetype: string): Promise<string> {
+  if (buffer.length > MAX_IMAGE_SIZE) {
+    throw new AppError(400, 'حجم الصورة كبير جداً. الحد الأقصى 5 ميجابايت')
+  }
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {

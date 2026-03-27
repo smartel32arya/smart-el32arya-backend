@@ -1,40 +1,59 @@
-import express, { RequestHandler, Request, Response, NextFunction } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import { PORT } from './config';
-import { connectDB } from './db';
-import { propertiesRouter } from './routes/properties';
-import { authRouter } from './routes/auth';
-import { adminPropertiesRouter } from './routes/admin/properties';
-import { adminUsersRouter } from './routes/admin/users';
-import { authenticate } from './middleware/authenticate';
+import express from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import morgan from 'morgan'
 
-const app = express();
+import { config } from './config'
+import { connectDB } from './db'
+import { errorHandler } from './middleware/errorHandler'
+import { authenticate } from './middleware/authenticate'
+import { propertiesRouter } from './modules/properties/routes/properties.routes'
+import { authRouter } from './modules/auth/routes/auth.routes'
+import { usersRouter } from './modules/users/routes/users.routes'
+import { adminPropertiesRouter } from './modules/admin/routes/adminProperties.routes'
+import { adminUsersRouter } from './modules/admin/routes/adminUsers.routes'
 
-app.use(helmet());
-app.use(morgan('dev'));
-app.use(cors());
-app.use(express.json());
+// ─── App factory ─────────────────────────────────────────────────────────────
 
-app.use('/api/properties', async (req, res, next) => { await connectDB(); next(); }, propertiesRouter);
-app.use('/api/auth', async (req, res, next) => { await connectDB(); next(); }, authRouter);
-app.use('/api/admin/properties', authenticate as RequestHandler, async (req, res, next) => { await connectDB(); next(); }, adminPropertiesRouter);
-app.use('/api/admin/users', async (req, res, next) => { await connectDB(); next(); }, adminUsersRouter);
+function createApp(): express.Application {
+  const app = express()
 
-// Global error logger
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(`[ERROR] ${req.method} ${req.url} - ${err.message}`);
-  res.status(500).json({ message: 'حدث خطأ داخلي في الخادم' });
-});
+  // Global middleware
+  app.use(helmet())
+  app.use(morgan('dev'))
+  app.use(cors())
+  app.use(express.json())
+
+  // Ensure DB is connected before any route handler runs
+  app.use(async (_req, _res, next) => {
+    await connectDB()
+    next()
+  })
+
+  // Routes
+  app.use('/api/properties',       propertiesRouter)
+  app.use('/api/auth',             authRouter)
+  app.use('/api/users',            usersRouter)
+  app.use('/api/admin/properties', authenticate, adminPropertiesRouter)
+  app.use('/api/admin/users',      authenticate, adminUsersRouter)
+
+  // Global error handler — must be last
+  app.use(errorHandler)
+
+  return app
+}
+
+// ─── Exports (Vercel + tests use the app directly) ───────────────────────────
+
+export const app = createApp()
+export default app
+
+// ─── Local server ─────────────────────────────────────────────────────────────
 
 if (!process.env.VERCEL) {
   connectDB().then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  });
+    app.listen(config.port, () => {
+      console.log(`Server running on port ${config.port}`)
+    })
+  })
 }
-
-export { app };
-export default app;

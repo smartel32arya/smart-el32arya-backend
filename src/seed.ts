@@ -117,38 +117,27 @@ const properties = [
 ]
 
 export async function seedDatabase(): Promise<void> {
-  // Clear existing data and drop stale indexes
   await Property.deleteMany({})
   await User.deleteMany({})
-  // Drop all non-_id indexes to remove stale unique constraints (e.g. old email_1)
   await User.collection.dropIndexes()
   console.log('Cleared existing Property and User records')
 
-  // Insert properties using insertMany (bypasses pre-save hooks)
-  await Property.insertMany(properties)
-  console.log(`Inserted ${properties.length} properties`)
-
-  // Create super admin user
-  const hashedPassword = await bcrypt.hash('YasserRostom@87749', 10)
-  await User.create({
-    name: 'YasserRostom',
-    username: 'YasserRostom',
+  // Create super admin first so we have an _id for addedBy
+  const hashedPassword = await bcrypt.hash('admin123', 10)
+  const admin = await User.create({
+    name: 'Super Admin',
+    username: 'admin',
+    phone: '01012345678',
     password: hashedPassword,
     role: 'super_admin',
     active: true,
   })
-  console.log('Created super_admin user: YasserRostom')
+  console.log('Created super_admin user: admin')
 
-  // Default seed user
-  const defaultHash = await bcrypt.hash('admin123', 10)
-  await User.create({
-    name: 'Super Admin',
-    username: 'admin',
-    password: defaultHash,
-    role: 'super_admin',
-    active: true,
-  })
-  console.log('Created default super_admin user: admin')
+  // Attach addedBy to every property
+  const propertiesWithOwner = properties.map((p) => ({ ...p, addedBy: admin._id }))
+  await Property.insertMany(propertiesWithOwner)
+  console.log(`Inserted ${properties.length} properties`)
 
   console.log('✅ Seed completed successfully')
 }

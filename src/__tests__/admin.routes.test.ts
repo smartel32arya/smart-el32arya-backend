@@ -6,8 +6,8 @@ import request from 'supertest'
 import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import { adminPropertiesRouter } from '../routes/admin/properties'
-import { adminUsersRouter } from '../routes/admin/users'
+import { adminPropertiesRouter } from '../modules/admin/routes/adminProperties.routes'
+import { adminUsersRouter } from '../modules/admin/routes/adminUsers.routes'
 import { authenticate } from '../middleware/authenticate'
 import { requireSuperAdmin } from '../middleware/requireSuperAdmin'
 import Property from '../models/Property'
@@ -37,9 +37,9 @@ beforeEach(async () => {
 })
 
 // Helper: generate a valid JWT token
-function generateToken(role: 'super_admin' | 'property_admin', id = 'test-user-id') {
+function generateToken(role: 'super_admin' | 'property_admin', id = new mongoose.Types.ObjectId().toHexString()) {
   return jwt.sign(
-    { id, email: `${role}@example.com`, role, name: 'Test User' },
+    { id, username: `${role}_user`, role, name: 'Test User' },
     'test-secret',
     { expiresIn: '1h' }
   )
@@ -81,7 +81,7 @@ test('Property 14: POST /api/admin/users with property_admin token → 403', asy
   const res = await request(app)
     .post('/api/admin/users')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'New User', email: 'new@example.com', password: 'pass123', role: 'property_admin' })
+    .send({ name: 'New User', username: 'new_user', password: 'pass123', role: 'property_admin' })
   expect(res.status).toBe(403)
   expect(res.body).toHaveProperty('message')
 })
@@ -113,7 +113,7 @@ test('Property 15: GET /api/admin/users response should not contain password fie
   // Create a user directly in DB
   await User.create({
     name: 'Admin User',
-    email: 'admin@example.com',
+    username: 'admin_user',
     password: 'hashed-password',
     role: 'super_admin',
     active: true,
@@ -137,7 +137,7 @@ test('Property 15: POST /api/admin/users response should not contain password fi
   const res = await request(app)
     .post('/api/admin/users')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'New Admin', email: 'newadmin@example.com', password: 'secret123', role: 'property_admin' })
+    .send({ name: 'New Admin', username: 'newadmin_user', password: 'secret123', role: 'property_admin' })
 
   expect(res.status).toBe(201)
   expect(res.body).not.toHaveProperty('password')
@@ -145,23 +145,23 @@ test('Property 15: POST /api/admin/users response should not contain password fi
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Feature: smart-realestate-backend, Property 19: Duplicate email returns 409
+// Feature: smart-realestate-backend, Property 19: Duplicate username returns 409
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('Property 19: POST /api/admin/users with duplicate email → 409', async () => {
+test('Property 19: POST /api/admin/users with duplicate username → 409', async () => {
   const token = generateToken('super_admin')
 
   // Create first user
   await request(app)
     .post('/api/admin/users')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'First User', email: 'dup@example.com', password: 'pass123', role: 'property_admin' })
+    .send({ name: 'First User', username: 'dup_user', password: 'pass123', role: 'property_admin' })
 
   // Attempt duplicate
   const res = await request(app)
     .post('/api/admin/users')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'Second User', email: 'dup@example.com', password: 'pass456', role: 'property_admin' })
+    .send({ name: 'Second User', username: 'dup_user', password: 'pass456', role: 'property_admin' })
 
   expect(res.status).toBe(409)
   expect(res.body).toHaveProperty('message')
@@ -191,7 +191,7 @@ test('POST /api/admin/properties (form fields) → 201 with created property', a
     .field('active', 'true')
 
   expect(res.status).toBe(201)
-  expect(res.body).toHaveProperty('id')
+  expect(res.body).toHaveProperty('_id')
   expect(res.body.title).toBe(body.title)
   expect(res.body.price).toBe(body.price)
 })
@@ -203,7 +203,7 @@ test('PUT /api/admin/properties/:id → 200 with updated property', async () => 
   const property = await Property.create(propertyBody())
 
   const res = await request(app)
-    .put(`/api/admin/properties/${property.id}`)
+    .put(`/api/admin/properties/${property._id}`)
     .set('Authorization', `Bearer ${token}`)
     .send({ title: 'Updated Title' })
 
@@ -217,7 +217,7 @@ test('DELETE /api/admin/properties/:id → 200', async () => {
   const property = await Property.create(propertyBody())
 
   const res = await request(app)
-    .delete(`/api/admin/properties/${property.id}`)
+    .delete(`/api/admin/properties/${property._id}`)
     .set('Authorization', `Bearer ${token}`)
 
   expect(res.status).toBe(200)
@@ -268,11 +268,11 @@ test('POST /api/admin/users → 201 with created user', async () => {
   const res = await request(app)
     .post('/api/admin/users')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'New User', email: 'newuser@example.com', password: 'pass123', role: 'property_admin' })
+    .send({ name: 'New User', username: 'newuser_user', password: 'pass123', role: 'property_admin' })
 
   expect(res.status).toBe(201)
-  expect(res.body).toHaveProperty('id')
-  expect(res.body.email).toBe('newuser@example.com')
+  expect(res.body).toHaveProperty('_id')
+  expect(res.body.username).toBe('newuser1')
   expect(res.body.role).toBe('property_admin')
 })
 
@@ -283,10 +283,10 @@ test('PUT /api/admin/users/:id → 200 with updated user', async () => {
   const createRes = await request(app)
     .post('/api/admin/users')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'Original Name', email: 'update@example.com', password: 'pass123', role: 'property_admin' })
+    .send({ name: 'Original Name', username: 'update_user', password: 'pass123', role: 'property_admin' })
 
   expect(createRes.status).toBe(201)
-  const userId = createRes.body.id
+  const userId = createRes.body._id
 
   const res = await request(app)
     .put(`/api/admin/users/${userId}`)
@@ -303,10 +303,10 @@ test('DELETE /api/admin/users/:id → 200', async () => {
   const createRes = await request(app)
     .post('/api/admin/users')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'To Delete', email: 'delete@example.com', password: 'pass123', role: 'property_admin' })
+    .send({ name: 'To Delete', username: 'delete_user', password: 'pass123', role: 'property_admin' })
 
   expect(createRes.status).toBe(201)
-  const userId = createRes.body.id
+  const userId = createRes.body._id
 
   const res = await request(app)
     .delete(`/api/admin/users/${userId}`)

@@ -3,7 +3,7 @@ import request from 'supertest'
 import fc from 'fast-check'
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import { propertiesRouter } from '../routes/properties'
+import { propertiesRouter } from '../modules/properties/routes/properties.routes'
 import Property from '../models/Property'
 
 // Minimal test app — no connectDB, no listen
@@ -268,13 +268,13 @@ test('Property 10: GET /api/properties/:id returns property regardless of active
   const active = await Property.create(makeProperty({ active: true }))
   const inactive = await Property.create(makeProperty({ active: false }))
 
-  const resActive = await request(app).get(`/api/properties/${active.id}`)
+  const resActive = await request(app).get(`/api/properties/${active._id}`)
   expect(resActive.status).toBe(200)
-  expect(resActive.body.id).toBe(active.id)
+  expect(resActive.body._id).toBe(String(active._id))
 
-  const resInactive = await request(app).get(`/api/properties/${inactive.id}`)
+  const resInactive = await request(app).get(`/api/properties/${inactive._id}`)
   expect(resInactive.status).toBe(200)
-  expect(resInactive.body.id).toBe(inactive.id)
+  expect(resInactive.body._id).toBe(String(inactive._id))
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -308,4 +308,145 @@ test('featured endpoint default limit is 6', async () => {
   const res = await request(app).get('/api/properties/featured')
   expect(res.status).toBe(200)
   expect(res.body.length).toBeLessThanOrEqual(6)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature: clean-architecture-refactor, Property 9: Pagination math invariant
+// ─────────────────────────────────────────────────────────────────────────────
+import { PropertyService } from '../modules/properties/services/PropertyService'
+import PropertyModel from '../models/Property'
+
+test('Property 9: Pagination math invariant — totalPages === ceil(total/pageSize) and data.length <= pageSize', async () => {
+  // Validates: Requirements 3.2
+  await fc.assert(
+    fc.asyncProperty(
+      fc.integer({ min: 1, max: 50 }),   // page
+      fc.integer({ min: 1, max: 20 }),   // pageSize
+      fc.integer({ min: 0, max: 200 }),  // total (controlled by mock)
+      async (page, pageSize, total) => {
+        const offset = (page - 1) * pageSize
+        const dataCount = Math.max(0, Math.min(pageSize, total - offset))
+        const stubData = Array.from({ length: dataCount }, (_, i) => ({
+          id: `id-${i}`,
+          title: `Property ${i}`,
+          description: '',
+          price: 1_000_000,
+          priceFormatted: '1,000,000 ج.م',
+          showPrice: true,
+          location: 'Test',
+          neighborhood: 'Test',
+          type: 'شقة',
+          bedrooms: 2,
+          bathrooms: 1,
+          area: 100,
+          image: 'img.jpg',
+          images: ['img.jpg'],
+          video: null,
+          amenities: [],
+          featured: false,
+          active: true,
+          createdAt: new Date().toISOString(),
+        }))
+
+        // Mock PropertyModel.find chain and countDocuments
+        const leanMock = jest.fn().mockResolvedValue(stubData)
+        const limitMock = jest.fn().mockReturnValue({ lean: leanMock })
+        const skipMock = jest.fn().mockReturnValue({ limit: limitMock })
+        const sortMock = jest.fn().mockReturnValue({ skip: skipMock })
+        const findSpy = jest.spyOn(PropertyModel, 'find').mockReturnValue({ sort: sortMock } as any)
+        const countSpy = jest.spyOn(PropertyModel, 'countDocuments').mockResolvedValue(total as any)
+
+        try {
+          const service = new PropertyService()
+          const result = await service.listProperties({ active: true }, { page, pageSize })
+
+          expect(result.totalPages).toBe(Math.ceil(total / pageSize))
+          expect(result.data.length).toBeLessThanOrEqual(pageSize)
+          expect(result.page).toBe(page)
+          expect(result.pageSize).toBe(pageSize)
+          expect(result.total).toBe(total)
+        } finally {
+          findSpy.mockRestore()
+          countSpy.mockRestore()
+        }
+      }
+    ),
+    { numRuns: 100 }
+  )
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature: clean-architecture-refactor, Property 12: Compound index coverage via PropertyService.listProperties
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 12: Compound index coverage via PropertyService.listProperties', () => {
+  // Validates: Requirements 3.2
+  // Note: The actual IXSCAN vs COLLSCAN tests are in repositories.test.ts.
+  // These tests verify that PropertyService.listProperties returns correct results
+  // for the compound index filter combinations { active, neighborhood } and { active, type },
+  // and that PropertyModel.find with { active, featured } uses an index (via getFeatured).
+
+  beforeEach(async () => {
+    // Seed properties with varied combinations of active, featured, neighborhood, type
+    await Property.create([
+      makeProperty({ active: true, featured: true, neighborhood: 'حي الزهراء', type: 'شقة' }),
+      makeProperty({ active: true, featured: false, neighborhood: 'حي الزهراء', type: 'فيلا' }),
+      makeProperty({ active: false, featured: true, neighborhood: 'حي الزهراء', type: 'شقة' }),
+      makeProperty({ active: true, featured: true, neighborhood: 'الحي الثامن', type: 'دوبلكس' }),
+      makeProperty({ active: true, featured: false, neighborhood: 'الحي الثامن', type: 'شقة' }),
+      makeProperty({ active: false, featured: false, neighborhood: 'الحي الثامن', type: 'فيلا' }),
+    ])
+  })
+
+  test('{ active, neighborhood } filter — listProperties returns only matching properties', async () => {
+    const service = new PropertyService()
+    const result = await service.listProperties(
+      { active: true, neighborhood: 'حي الزهراء' },
+      { page: 1, pageSize: 10 }
+    )
+
+    expect(result.data.length).toBeGreaterThan(0)
+    result.data.forEach(p => {
+      expect(p.active).toBe(true)
+      expect(p.neighborhood).toBe('حي الزهراء')
+    })
+  })
+
+  test('{ active, type } filter — listProperties returns only matching properties', async () => {
+    const service = new PropertyService()
+    const result = await service.listProperties(
+      { active: true, type: 'شقة' },
+      { page: 1, pageSize: 10 }
+    )
+
+    expect(result.data.length).toBeGreaterThan(0)
+    result.data.forEach(p => {
+      expect(p.active).toBe(true)
+      expect(p.type).toBe('شقة')
+    })
+  })
+
+  test('{ active, featured } compound index exists on PropertyModel schema', () => {
+    // Verify the compound index is defined on the schema so queries via getFeatured use IXSCAN
+    const indexes = PropertyModel.schema.indexes()
+    const hasActiveFeaturedIndex = indexes.some(([fields]) =>
+      'active' in fields && 'featured' in fields
+    )
+    expect(hasActiveFeaturedIndex).toBe(true)
+  })
+
+  test('{ active, neighborhood } compound index exists on PropertyModel schema', () => {
+    const indexes = PropertyModel.schema.indexes()
+    const hasActiveNeighborhoodIndex = indexes.some(([fields]) =>
+      'active' in fields && 'neighborhood' in fields
+    )
+    expect(hasActiveNeighborhoodIndex).toBe(true)
+  })
+
+  test('{ active, type } compound index exists on PropertyModel schema', () => {
+    const indexes = PropertyModel.schema.indexes()
+    const hasActiveTypeIndex = indexes.some(([fields]) =>
+      'active' in fields && 'type' in fields
+    )
+    expect(hasActiveTypeIndex).toBe(true)
+  })
 })

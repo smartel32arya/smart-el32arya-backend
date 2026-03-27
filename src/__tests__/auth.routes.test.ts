@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import { authRouter } from '../routes/auth'
+import { authRouter } from '../modules/auth/routes/auth.routes'
 import { authenticate } from '../middleware/authenticate'
 import User from '../models/User'
 
@@ -35,7 +35,7 @@ beforeEach(async () => {
 // Helper: create a user with a bcrypt-hashed password
 async function createTestUser(overrides: Partial<{
   name: string
-  email: string
+  username: string
   password: string
   role: 'super_admin' | 'property_admin'
   active: boolean
@@ -44,7 +44,7 @@ async function createTestUser(overrides: Partial<{
   const hashedPassword = await bcrypt.hash(plainPassword, 10)
   return User.create({
     name: overrides.name ?? 'Test User',
-    email: overrides.email ?? 'test@example.com',
+    username: overrides.username ?? 'test@example.com',
     password: hashedPassword,
     role: overrides.role ?? 'property_admin',
     active: overrides.active !== undefined ? overrides.active : true,
@@ -71,7 +71,7 @@ test('Property 12: GET /api/auth/me with malformed token → 401', async () => {
 
 test('Property 12: GET /api/auth/me with expired token → 401', async () => {
   const expiredToken = jwt.sign(
-    { id: 'some-id', email: 'test@example.com', role: 'property_admin', name: 'Test' },
+    { id: 'some-id', username: 'test_user', role: 'property_admin', name: 'Test' },
     'test-secret',
     { expiresIn: '0s' }
   )
@@ -87,28 +87,28 @@ test('Property 12: GET /api/auth/me with expired token → 401', async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('Property 13: POST /api/auth/login with valid credentials → returns token', async () => {
-  await createTestUser({ email: 'admin@example.com', password: 'secret123' })
+  await createTestUser({ username: 'admin_user', password: 'secret123' })
 
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'admin@example.com', password: 'secret123' })
+    .send({ username: 'admin_user', password: 'secret123' })
 
   expect(res.status).toBe(200)
   expect(res.body).toHaveProperty('token')
   expect(typeof res.body.token).toBe('string')
 })
 
-test('Property 13: GET /api/auth/me with valid token → returns user object with id, email, role, name', async () => {
+test('Property 13: GET /api/auth/me with valid token → returns user object with id, username, role, name', async () => {
   await createTestUser({
     name: 'Jane Doe',
-    email: 'jane@example.com',
+    username: 'jane_user',
     password: 'mypassword',
     role: 'super_admin',
   })
 
   const loginRes = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'jane@example.com', password: 'mypassword' })
+    .send({ username: 'jane_user', password: 'mypassword' })
 
   expect(loginRes.status).toBe(200)
   const { token } = loginRes.body
@@ -119,7 +119,7 @@ test('Property 13: GET /api/auth/me with valid token → returns user object wit
 
   expect(meRes.status).toBe(200)
   expect(meRes.body).toHaveProperty('id')
-  expect(meRes.body).toHaveProperty('email', 'jane@example.com')
+  expect(meRes.body).toHaveProperty('username', 'jane')
   expect(meRes.body).toHaveProperty('role', 'super_admin')
   expect(meRes.body).toHaveProperty('name', 'Jane Doe')
 })
@@ -129,11 +129,11 @@ test('Property 13: GET /api/auth/me with valid token → returns user object wit
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('Property 15: POST /api/auth/login response body should not contain password field', async () => {
-  await createTestUser({ email: 'user@example.com', password: 'pass123' })
+  await createTestUser({ username: 'user_user', password: 'pass123' })
 
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'user@example.com', password: 'pass123' })
+    .send({ username: 'user_user', password: 'pass123' })
 
   expect(res.status).toBe(200)
   expect(res.body.user).not.toHaveProperty('password')
@@ -142,11 +142,11 @@ test('Property 15: POST /api/auth/login response body should not contain passwor
 })
 
 test('Property 15: GET /api/auth/me response body should not contain password field', async () => {
-  await createTestUser({ email: 'user2@example.com', password: 'pass456' })
+  await createTestUser({ username: 'user2_user', password: 'pass456' })
 
   const loginRes = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'user2@example.com', password: 'pass456' })
+    .send({ username: 'user2_user', password: 'pass456' })
 
   const { token } = loginRes.body
 
@@ -163,32 +163,32 @@ test('Property 15: GET /api/auth/me response body should not contain password fi
 // Unit examples — login error cases
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('POST /api/auth/login with non-existent email → 401', async () => {
+test('POST /api/auth/login with non-existent username → 401', async () => {
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'nobody@example.com', password: 'whatever' })
+    .send({ username: 'nobody_user', password: 'whatever' })
 
   expect(res.status).toBe(401)
   expect(res.body).toHaveProperty('message')
 })
 
 test('POST /api/auth/login with wrong password → 401', async () => {
-  await createTestUser({ email: 'real@example.com', password: 'correctpass' })
+  await createTestUser({ username: 'real_user', password: 'correctpass' })
 
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'real@example.com', password: 'wrongpass' })
+    .send({ username: 'real_user', password: 'wrongpass' })
 
   expect(res.status).toBe(401)
   expect(res.body).toHaveProperty('message')
 })
 
 test('POST /api/auth/login with inactive user → 403', async () => {
-  await createTestUser({ email: 'inactive@example.com', password: 'pass123', active: false })
+  await createTestUser({ username: 'inactive_user', password: 'pass123', active: false })
 
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'inactive@example.com', password: 'pass123' })
+    .send({ username: 'inactive_user', password: 'pass123' })
 
   expect(res.status).toBe(403)
   expect(res.body).toHaveProperty('message')
@@ -197,20 +197,20 @@ test('POST /api/auth/login with inactive user → 403', async () => {
 test('POST /api/auth/login with valid credentials → 200 with { token, user }', async () => {
   await createTestUser({
     name: 'Valid User',
-    email: 'valid@example.com',
+    username: 'valid_user',
     password: 'validpass',
     role: 'property_admin',
   })
 
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'valid@example.com', password: 'validpass' })
+    .send({ username: 'valid_user', password: 'validpass' })
 
   expect(res.status).toBe(200)
   expect(res.body).toHaveProperty('token')
   expect(res.body).toHaveProperty('user')
-  expect(res.body.user).toHaveProperty('id')
-  expect(res.body.user).toHaveProperty('email', 'valid@example.com')
+  expect(res.body.user).toHaveProperty('_id')
+  expect(res.body.user).toHaveProperty('username', 'valid@example.com')
   expect(res.body.user).toHaveProperty('role', 'property_admin')
   expect(res.body.user).toHaveProperty('name', 'Valid User')
 })

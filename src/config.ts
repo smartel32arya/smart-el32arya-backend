@@ -1,6 +1,19 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import dotenv from 'dotenv'
+dotenv.config()
 
-export const PORT = process.env.PORT || 5000;
-export const MONGODB_URI = process.env.MONGODB_URI as string;
-export const JWT_SECRET = process.env.JWT_SECRET as string;
+function requireEnv(key: string): string {
+  const value = process.env[key]
+  if (!value) throw new Error(`Missing required environment variable: ${key}`)
+  return value
+}
+
+export const config = {
+  port: process.env.PORT ?? '5000',
+  mongodbUri: requireEnv('MONGODB_URI'),
+  jwtSecret: requireEnv('JWT_SECRET'),
+  cloudinary: {
+    cloudName: requireEnv('CLOUDINARY_CLOUD_NAME'),
+    apiKey: requireEnv('CLOUDINARY_API_KEY'),
+    apiSecret: requireEnv('CLOUDINARY_API_SECRET'),
+  },
+} as const

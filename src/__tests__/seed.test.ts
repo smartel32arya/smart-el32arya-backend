@@ -34,7 +34,7 @@ describe('Seed Script — unit examples', () => {
     await seedDatabase()
     const superAdmin = await User.findOne({ role: 'super_admin' })
     expect(superAdmin).not.toBeNull()
-    expect(superAdmin!.email).toBe('admin@smart-realestate.com')
+    expect(superAdmin!.username).toBe('admin')
   })
 })
 
@@ -77,7 +77,7 @@ describe('Property 22: Seed clears existing data', () => {
 
           const extraUserDocs = Array.from({ length: extraUsers }, (_, i) => ({
             name: `Old User ${i}`,
-            email: `olduser${i}@example.com`,
+            username: `olduser${i}_user`,
             password: 'hashed',
             role: 'property_admin' as const,
             active: true,

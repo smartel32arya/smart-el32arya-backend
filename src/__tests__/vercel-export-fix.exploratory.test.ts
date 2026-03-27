@@ -22,10 +22,10 @@ jest.mock('../config', () => ({
 }));
 
 // Mock all route modules to keep the import lightweight
-jest.mock('../routes/properties', () => ({ propertiesRouter: require('express').Router() }));
-jest.mock('../routes/auth', () => ({ authRouter: require('express').Router() }));
-jest.mock('../routes/admin/properties', () => ({ adminPropertiesRouter: require('express').Router() }));
-jest.mock('../routes/admin/users', () => ({ adminUsersRouter: require('express').Router() }));
+jest.mock('../modules/properties/routes', () => ({ propertiesRouter: require('express').Router() }));
+jest.mock('../modules/auth/routes', () => ({ authRouter: require('express').Router() }));
+jest.mock('../modules/admin/routes/properties', () => ({ adminPropertiesRouter: require('express').Router() }));
+jest.mock('../modules/admin/routes/users', () => ({ adminUsersRouter: require('express').Router() }));
 jest.mock('../middleware/authenticate', () => ({ authenticate: (_req: any, _res: any, next: any) => next() }));
 
 describe('Exploratory: vercel-export-fix bug conditions (expected to FAIL on unfixed code)', () => {
@@ -43,10 +43,10 @@ describe('Exploratory: vercel-export-fix bug conditions (expected to FAIL on unf
     // Re-apply mocks after resetModules
     jest.mock('../db', () => ({ connectDB: jest.fn().mockResolvedValue(undefined) }));
     jest.mock('../config', () => ({ PORT: 5000, MONGODB_URI: 'mongodb://localhost:27017/test', JWT_SECRET: 'test-secret' }));
-    jest.mock('../routes/properties', () => ({ propertiesRouter: require('express').Router() }));
-    jest.mock('../routes/auth', () => ({ authRouter: require('express').Router() }));
-    jest.mock('../routes/admin/properties', () => ({ adminPropertiesRouter: require('express').Router() }));
-    jest.mock('../routes/admin/users', () => ({ adminUsersRouter: require('express').Router() }));
+    jest.mock('../modules/properties/routes', () => ({ propertiesRouter: require('express').Router() }));
+    jest.mock('../modules/auth/routes', () => ({ authRouter: require('express').Router() }));
+    jest.mock('../modules/admin/routes/properties', () => ({ adminPropertiesRouter: require('express').Router() }));
+    jest.mock('../modules/admin/routes/users', () => ({ adminUsersRouter: require('express').Router() }));
     jest.mock('../middleware/authenticate', () => ({ authenticate: (_req: any, _res: any, next: any) => next() }));
 
     const indexModule = require('../index');
@@ -75,10 +75,10 @@ describe('Exploratory: vercel-export-fix bug conditions (expected to FAIL on unf
     // Re-apply mocks after resetModules
     jest.mock('../db', () => ({ connectDB: jest.fn().mockResolvedValue(undefined) }));
     jest.mock('../config', () => ({ PORT: 5000, MONGODB_URI: 'mongodb://localhost:27017/test', JWT_SECRET: 'test-secret' }));
-    jest.mock('../routes/properties', () => ({ propertiesRouter: require('express').Router() }));
-    jest.mock('../routes/auth', () => ({ authRouter: require('express').Router() }));
-    jest.mock('../routes/admin/properties', () => ({ adminPropertiesRouter: require('express').Router() }));
-    jest.mock('../routes/admin/users', () => ({ adminUsersRouter: require('express').Router() }));
+    jest.mock('../modules/properties/routes', () => ({ propertiesRouter: require('express').Router() }));
+    jest.mock('../modules/auth/routes', () => ({ authRouter: require('express').Router() }));
+    jest.mock('../modules/admin/routes/properties', () => ({ adminPropertiesRouter: require('express').Router() }));
+    jest.mock('../modules/admin/routes/users', () => ({ adminUsersRouter: require('express').Router() }));
     jest.mock('../middleware/authenticate', () => ({ authenticate: (_req: any, _res: any, next: any) => next() }));
 
     // Mock express so we can spy on listen

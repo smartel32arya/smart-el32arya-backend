@@ -1,9 +1,8 @@
-import { Schema, model, Document } from 'mongoose'
-import { v4 as uuidv4 } from 'uuid'
+import { Schema, model, Document, Types } from 'mongoose'
 import { formatPrice } from '../utils/formatPrice'
 
 export interface IProperty {
-  id: string
+  _id: string
   title: string
   description: string
   price: number
@@ -21,42 +20,51 @@ export interface IProperty {
   amenities: string[]
   featured: boolean
   active: boolean
+  addedBy: Types.ObjectId   // ref to User._id
   createdAt: string
 }
 
 const PropertySchema = new Schema<IProperty & Document>(
   {
-    id: { type: String, default: uuidv4 },
-    title: { type: String, required: true },
-    description: { type: String, required: true },
-    price: { type: Number, required: true },
+    title:        { type: String, required: true },
+    description:  { type: String, required: true },
+    price:        { type: Number, required: true },
     priceFormatted: { type: String, default: '' },
-    showPrice: { type: Boolean, default: true },
-    location: { type: String, required: true },
-    neighborhood: { type: String, required: true },
-    type: { type: String, required: true },
-    bedrooms: { type: Number, required: true },
+    showPrice:    { type: Boolean, default: true },
+    location:     { type: String, required: true },
+    neighborhood: {
+      type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      required: true,
+    },
+    bedrooms:  { type: Number, required: true },
     bathrooms: { type: Number, required: true },
-    area: { type: Number, required: true },
-    image: { type: String, default: '' },
-    images: { type: [String], default: [] },
-    video: { type: String, default: null },
+    area:      { type: Number, required: true },
+    image:     { type: String, default: '' },
+    images:    { type: [String], default: [] },
+    video:     { type: String, default: null },
     amenities: { type: [String], default: [] },
-    featured: { type: Boolean, default: false },
-    active: { type: Boolean, default: true },
+    featured:  { type: Boolean, default: false },
+    active:    { type: Boolean, default: true },
+    addedBy:   { type: Schema.Types.ObjectId, ref: 'User', required: true },
     createdAt: { type: String, default: () => new Date().toISOString() },
   },
-  { versionKey: false }
+  {
+    versionKey: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 )
 
-// Indexes
-PropertySchema.index({ active: 1 })
-PropertySchema.index({ featured: 1 })
-PropertySchema.index({ neighborhood: 1 })
-PropertySchema.index({ type: 1 })
+// Compound indexes for common filter combinations
+PropertySchema.index({ active: 1, featured: 1 })
+PropertySchema.index({ active: 1, neighborhood: 1 })
+PropertySchema.index({ active: 1, type: 1 })
 PropertySchema.index({ price: 1 })
 
-// Pre-save hook — task 2.2
 PropertySchema.pre('save', function (next) {
   if (this.images && this.images.length > 0) {
     this.image = this.images[0]
