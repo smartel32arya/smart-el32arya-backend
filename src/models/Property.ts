@@ -11,9 +11,10 @@ export interface IProperty {
   location: string
   neighborhood: string
   type: string
-  bedrooms: number
-  bathrooms: number
-  area: number
+  listingType: 'sale' | 'rent'
+  bedrooms?: number
+  bathrooms?: number
+  area?: number
   image: string
   images: string[]
   video: string | null
@@ -40,9 +41,10 @@ const PropertySchema = new Schema<IProperty & Document>(
       type: String,
       required: true,
     },
-    bedrooms:  { type: Number, required: true },
-    bathrooms: { type: Number, required: true },
-    area:      { type: Number, required: true },
+    listingType: { type: String, enum: ['sale', 'rent'], required: true, default: 'sale' },
+    bedrooms:  { type: Number },
+    bathrooms: { type: Number },
+    area:      { type: Number },
     image:     { type: String, default: '' },
     images:    { type: [String], default: [] },
     video:     { type: String, default: null },
@@ -63,6 +65,7 @@ const PropertySchema = new Schema<IProperty & Document>(
 PropertySchema.index({ active: 1, featured: 1 })
 PropertySchema.index({ active: 1, neighborhood: 1 })
 PropertySchema.index({ active: 1, type: 1 })
+PropertySchema.index({ active: 1, listingType: 1 })
 PropertySchema.index({ price: 1 })
 
 PropertySchema.pre('save', function (next) {

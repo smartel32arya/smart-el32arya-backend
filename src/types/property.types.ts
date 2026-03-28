@@ -10,9 +10,10 @@ export interface IProperty {
   location: string
   neighborhood: string
   type: string
-  bedrooms: number
-  bathrooms: number
-  area: number
+  listingType: 'sale' | 'rent'
+  bedrooms?: number
+  bathrooms?: number
+  area?: number
   image: string
   images: string[]
   video: string | null

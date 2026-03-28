@@ -252,11 +252,12 @@ Required fields:
 - `location` (string)
 - `neighborhood` (string)
 - `type` (string)
+
+Optional fields:
+- `listingType` (string, `"sale"` | `"rent"`, default `"sale"`) — whether the property is listed for sale or rent
 - `bedrooms` (integer, min 0)
 - `bathrooms` (integer, min 0)
 - `area` (number, positive)
-
-Optional fields:
 - `featured` (`"true"` | `"false"`, default `"false"`)
 - `active` (`"true"` | `"false"`, default `"true"`)
 - `showPrice` (`"true"` | `"false"`, default `"true"`)
@@ -508,6 +509,7 @@ Deletes a user. A user cannot delete their own account.
   "location": "المنيا الجديدة",
   "neighborhood": "حي الزهراء",
   "type": "شقة",
+  "listingType": "sale",
   "bedrooms": 3,
   "bathrooms": 2,
   "area": 120,
@@ -527,7 +529,10 @@ Deletes a user. A user cannot delete their own account.
 
 > `_id` — MongoDB ObjectId string.
 > `addedBy` — the owner's name.
-> `contactPhone` — the owner's WhatsApp number. Present on all property responses.
+> `contactPhone` — the owner's WhatsApp number. Present on all property responses. Returned exactly as stored, without normalization.
+> `listingType` — `"sale"` or `"rent"`. Defaults to `"sale"` if not provided.
+> `bedrooms`, `bathrooms`, `area` — optional; may be absent from the response if not set on the document.
+> `priceFormatted` — price formatted with Arabic-Indic digits and ` ج.م` suffix, e.g. `"١,٥٠٠,٠٠٠ ج.م"`.
 > `ownerSuspended` — only present in admin responses (`/api/admin/properties`). `true` when the owner's account is inactive or expired.
 > `ownerActive` — only present in admin responses (`/api/admin/properties`). `true` when the owner is active.
 
