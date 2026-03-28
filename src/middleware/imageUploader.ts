@@ -15,7 +15,7 @@ cloudinary.config({
 const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const ALLOWED_VIDEO_MIME_TYPES = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm']
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5 MB
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024 // 100 MB
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50 MB
 
 const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
   if (file.fieldname === 'video') {
@@ -23,6 +23,13 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCall
       cb(null, true)
     } else {
       cb(new Error('INVALID_VIDEO_TYPE'))
+    }
+  } else if (file.fieldname === 'file') {
+    // standalone upload — accept both images and videos
+    if (ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype) || ALLOWED_VIDEO_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('INVALID_FILE_TYPE'))
     }
   } else {
     if (ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
@@ -92,6 +99,9 @@ export async function uploadToCloudinary(buffer: Buffer, mimetype: string): Prom
 
 // Upload a single video buffer to Cloudinary, returns the secure URL
 export async function uploadVideoToCloudinary(buffer: Buffer): Promise<string> {
+  if (buffer.length > MAX_VIDEO_SIZE) {
+    throw new AppError(400, 'حجم الفيديو كبير جداً. الحد الأقصى 50 ميجابايت')
+  }
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder: 'smart-realestate/properties', resource_type: 'video' },
@@ -128,7 +138,7 @@ export async function deleteFromCloudinary(
 export const handleUploadError = (err: unknown, _req: Request, res: Response, next: NextFunction): void => {
   if (err instanceof MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      res.status(400).json({ message: 'حجم الملف كبير جداً. الحد الأقصى 100 ميجابايت للفيديو و 5 ميجابايت للصور' })
+      res.status(400).json({ message: 'حجم الملف كبير جداً. الحد الأقصى 50 ميجابايت للفيديو و 5 ميجابايت للصور' })
       return
     }
   }

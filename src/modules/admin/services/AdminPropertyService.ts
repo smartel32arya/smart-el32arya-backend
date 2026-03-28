@@ -5,23 +5,34 @@ import {
   uploadVideoToCloudinary,
   deleteFromCloudinary,
 } from '../../../middleware/imageUploader'
-import { parseFormDataBooleans, parseAmenities } from '../../../utils/parseFormData'
 import { createPropertySchema, updatePropertySchema } from '../validators/adminProperties.schemas'
 import { IProperty, PropertyAdminView, PropertyFilter, PropertyPagination, PropertyListResult, PropertyWithContact } from '../../../types/property.types'
 
 const propertyService = new PropertyService()
 
 export type CreatePropertyInput = {
-  body: Record<string, string>
-  imageFiles: Express.Multer.File[]
-  videoFiles: Express.Multer.File[]
+  body: Record<string, unknown>
   addedBy: string
 }
 
-export type UpdatePropertyInput = {
-  body: Record<string, string>
+export type UpdatePropertyDataInput = {
+  body: Record<string, unknown>
+  existing: IProperty
+}
+
+export type UploadImagesInput = {
   imageFiles: Express.Multer.File[]
-  videoFiles: Express.Multer.File[]
+  existing: IProperty
+}
+
+export type ReplaceImagesInput = {
+  imageFiles: Express.Multer.File[]
+  existingImages: string[] | undefined   // undefined = keep all
+  existing: IProperty
+}
+
+export type UploadVideoInput = {
+  videoFile: Express.Multer.File
   existing: IProperty
 }
 
@@ -52,105 +63,80 @@ export class AdminPropertyService {
 
   // ── Create ────────────────────────────────────────────────────────────────
 
-  async create(input: CreatePropertyInput): Promise<IProperty> {
-    const { body, imageFiles, videoFiles, addedBy } = input
+  async createProperty(input: CreatePropertyInput): Promise<IProperty> {
+    const { body, addedBy } = input
 
-    const images: string[] = imageFiles.length > 0
-      ? await Promise.all(imageFiles.map((f) => uploadToCloudinary(f.buffer, f.mimetype)))
-      : []
-
-    const video: string | null = videoFiles.length > 0
-      ? await uploadVideoToCloudinary(videoFiles[0].buffer)
-      : null
-
-    const { featured, active, showPrice } = parseFormDataBooleans(body)
-    const amenities = parseAmenities(body.amenities)
-
-    const rawDto = {
-      title:        body.title,
-      description:  body.description,
-      price:        parseFloat(body.price),
-      location:     body.location,
-      neighborhood: body.neighborhood,
-      type:         body.type,
-      listingType:  body.listingType,
-      bedrooms:     body.bedrooms  !== undefined ? parseInt(body.bedrooms, 10)  : undefined,
-      bathrooms:    body.bathrooms !== undefined ? parseInt(body.bathrooms, 10) : undefined,
-      area:         body.area      !== undefined ? parseFloat(body.area)        : undefined,
-      images,
-      video,
-      amenities,
-      featured,
-      active,
-      showPrice,
-      addedBy,
-    }
-
-    const result = createPropertySchema.safeParse(rawDto)
+    const result = createPropertySchema.safeParse({ ...body, addedBy })
     if (!result.success) throw new AppError(400, result.error.issues[0]?.message ?? 'بيانات غير صالحة')
 
-    return propertyService.createProperty(result.data as unknown as import('../../../types/property.types').CreatePropertyDto)
+    return propertyService.createProperty({
+      ...(result.data as unknown as import('../../../types/property.types').CreatePropertyDto),
+      images: result.data.images ?? [],
+      video:  result.data.video  ?? null,
+    })
   }
 
   // ── Update ────────────────────────────────────────────────────────────────
 
-  async update(id: string, input: UpdatePropertyInput): Promise<IProperty> {
-    const { body, imageFiles, videoFiles, existing } = input
+  async updatePropertyData(id: string, input: UpdatePropertyDataInput): Promise<IProperty> {
+    const { body } = input
 
-    // Images — preserve existing unless overridden
-    let keptImages: string[] = existing.images ?? []
-    if (body.existingImages !== undefined) {
-      keptImages = typeof body.existingImages === 'string'
-        ? JSON.parse(body.existingImages) as string[]
-        : body.existingImages
-    }
-
-    const removedImages = (existing.images ?? []).filter((url) => !keptImages.includes(url))
-    await Promise.all(removedImages.map((url) => deleteFromCloudinary(url, 'image')))
-
-    const newImageUrls = imageFiles.length > 0
-      ? await Promise.all(imageFiles.map((f) => uploadToCloudinary(f.buffer, f.mimetype)))
-      : []
-
-    const finalImages = [...keptImages, ...newImageUrls]
-
-    // Video — preserve existing unless overridden
-    let finalVideo: string | null = existing.video ?? null
-    if (videoFiles.length > 0) {
-      if (existing.video) await deleteFromCloudinary(existing.video, 'video')
-      finalVideo = await uploadVideoToCloudinary(videoFiles[0].buffer)
-    } else if (body.videoUrl !== undefined) {
-      finalVideo = body.videoUrl || null
-    }
-
-    const featured  = body.featured  !== undefined ? body.featured  === 'true'  : existing.featured
-    const active    = body.active    !== undefined ? body.active    === 'true'  : existing.active
-    const showPrice = body.showPrice !== undefined ? body.showPrice !== 'false' : existing.showPrice
-    const amenities = body.amenities !== undefined ? parseAmenities(body.amenities) : existing.amenities
-
-    const rawDto = {
-      title:        body.title        ?? existing.title,
-      description:  body.description  ?? existing.description,
-      price:        body.price        !== undefined ? parseFloat(body.price)       : existing.price,
-      location:     body.location     ?? existing.location,
-      neighborhood: body.neighborhood ?? existing.neighborhood,
-      type:         body.type         ?? existing.type,
-      listingType:  body.listingType  ?? existing.listingType,
-      bedrooms:     body.bedrooms     !== undefined ? parseInt(body.bedrooms, 10)  : existing.bedrooms,
-      bathrooms:    body.bathrooms    !== undefined ? parseInt(body.bathrooms, 10) : existing.bathrooms,
-      area:         body.area         !== undefined ? parseFloat(body.area)        : existing.area,
-      images: finalImages,
-      video: finalVideo,
-      amenities,
-      featured,
-      active,
-      showPrice,
-    }
-
-    const result = updatePropertySchema.safeParse(rawDto)
+    const result = updatePropertySchema.safeParse(body)
     if (!result.success) throw new AppError(400, result.error.issues[0]?.message ?? 'بيانات غير صالحة')
 
     return propertyService.updateProperty(id, result.data as import('../../../types/property.types').UpdatePropertyDto)
+  }
+
+  // ── Images ───────────────────────────────────────────────────────────────
+
+  async uploadImages(id: string, input: UploadImagesInput): Promise<IProperty> {
+    const { imageFiles, existing } = input
+    const newUrls = await Promise.all(
+      imageFiles.map((file) => uploadToCloudinary(file.buffer, file.mimetype))
+    )
+    return propertyService.updateProperty(id, {
+      images: [...(existing.images ?? []), ...newUrls],
+    })
+  }
+
+  async replaceImages(id: string, input: ReplaceImagesInput): Promise<IProperty> {
+    const { imageFiles, existingImages, existing } = input
+    const keptImages = existingImages !== undefined ? existingImages : (existing.images ?? [])
+
+    const toDelete = (existing.images ?? []).filter((url) => !keptImages.includes(url))
+    await Promise.all(toDelete.map((url) => deleteFromCloudinary(url, 'image')))
+
+    const newUrls = await Promise.all(
+      imageFiles.map((file) => uploadToCloudinary(file.buffer, file.mimetype))
+    )
+
+    return propertyService.updateProperty(id, {
+      images: [...keptImages, ...newUrls],
+    })
+  }
+
+  // ── Video ─────────────────────────────────────────────────────────────────
+
+  async uploadVideo(id: string, input: UploadVideoInput): Promise<IProperty> {
+    const { videoFile } = input
+    const newUrl = await uploadVideoToCloudinary(videoFile.buffer)
+    return propertyService.updateProperty(id, { video: newUrl })
+  }
+
+  async replaceVideo(id: string, input: UploadVideoInput): Promise<IProperty> {
+    const { videoFile, existing } = input
+    if (existing.video) {
+      await deleteFromCloudinary(existing.video, 'video')
+    }
+    const newUrl = await uploadVideoToCloudinary(videoFile.buffer)
+    return propertyService.updateProperty(id, { video: newUrl })
+  }
+
+  async removeVideo(id: string, existing: IProperty): Promise<IProperty> {
+    if (existing.video) {
+      await deleteFromCloudinary(existing.video, 'video')
+    }
+    return propertyService.updateProperty(id, { video: null })
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────

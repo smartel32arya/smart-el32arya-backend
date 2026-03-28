@@ -21,6 +21,11 @@ export const requirePropertyOwnership: RequestHandler = async (
   const authReq = req as AuthRequest
   const user = authReq.user!
 
+  if (!req.params.id.match(/^[a-f\d]{24}$/i)) {
+    res.status(404).json({ message: 'العقار غير موجود' })
+    return
+  }
+
   const property = await PropertyModel.findById(req.params.id).lean()
 
   if (!property) {

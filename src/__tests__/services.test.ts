@@ -16,15 +16,17 @@ describe('PropertyService — property tests', () => {
     jest.clearAllMocks()
   })
 
-  // Feature: clean-architecture-refactor, Property 2: Service throws AppError(404) when Mongoose findOne returns null
-  it('Property 2: throws AppError(404) when findOne/findOneAndDelete returns null', async () => {
+  // Feature: clean-architecture-refactor, Property 2: Service throws AppError(404) when findById/findByIdAndDelete returns null
+  it('Property 2: throws AppError(404) when findById/findByIdAndDelete returns null', async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.string({ minLength: 1 }),
         async (id: string) => {
-          // getById: findOne().lean() returns null
-          ;(MockedPropertyModel.findOne as jest.Mock).mockReturnValue({
-            lean: () => Promise.resolve(null),
+          // getById: findById().populate().lean() returns null
+          ;(MockedPropertyModel.findById as jest.Mock).mockReturnValue({
+            populate: () => ({
+              lean: () => Promise.resolve(null),
+            }),
           })
 
           const service = new PropertyService()
@@ -33,14 +35,14 @@ describe('PropertyService — property tests', () => {
           expect(errGetById).toBeInstanceOf(AppError)
           expect((errGetById as AppError).httpStatus).toBe(404)
 
-          // updateProperty: findOne() returns null (no .lean())
-          ;(MockedPropertyModel.findOne as jest.Mock).mockResolvedValue(null)
+          // updateProperty: findById() returns null
+          ;(MockedPropertyModel.findById as jest.Mock).mockResolvedValue(null)
           const errUpdate = await service.updateProperty(id, {}).catch((e: unknown) => e)
           expect(errUpdate).toBeInstanceOf(AppError)
           expect((errUpdate as AppError).httpStatus).toBe(404)
 
-          // deleteProperty: findOneAndDelete returns null
-          ;(MockedPropertyModel.findOneAndDelete as jest.Mock).mockResolvedValue(null)
+          // deleteProperty: findByIdAndDelete returns null
+          ;(MockedPropertyModel.findByIdAndDelete as jest.Mock).mockResolvedValue(null)
           const errDelete = await service.deleteProperty(id).catch((e: unknown) => e)
           expect(errDelete).toBeInstanceOf(AppError)
           expect((errDelete as AppError).httpStatus).toBe(404)
@@ -50,57 +52,33 @@ describe('PropertyService — property tests', () => {
     )
   })
 
-  // Feature: clean-architecture-refactor, Property 3: PropertyService.listProperties issues count and data queries concurrently
-  it('Property 3: listProperties issues count and data queries concurrently via Promise.all', async () => {
+  // Feature: clean-architecture-refactor, Property 3: PropertyService.listProperties issues queries via aggregate
+  it('Property 3: listProperties uses aggregate and returns data + total', async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.integer({ min: 1, max: 10 }),
         async (page: number) => {
+          jest.clearAllMocks()
           const pageSize = 10
-          let findStarted = false
-          let countStarted = false
-          let findResolve!: (v: unknown[]) => void
-          let countResolve!: (v: number) => void
+          const fakeResult = {
+            data: [],
+            count: [{ total: 0 }],
+            activeCount: [{ total: 0 }],
+            featuredCount: [{ total: 0 }],
+          }
 
-          const findPromise = new Promise<unknown[]>((resolve) => {
-            findResolve = resolve
-          })
-          const countPromise = new Promise<number>((resolve) => {
-            countResolve = resolve
-          })
-
-          ;(MockedPropertyModel.find as jest.Mock).mockImplementation(() => ({
-            sort: () => ({
-              skip: () => ({
-                limit: () => ({
-                  lean: () => {
-                    findStarted = true
-                    return findPromise
-                  },
-                }),
-              }),
-            }),
-          }))
-          ;(MockedPropertyModel.countDocuments as jest.Mock).mockImplementation(() => {
-            countStarted = true
-            return countPromise
-          })
+          ;(MockedPropertyModel.aggregate as jest.Mock).mockResolvedValue([fakeResult])
 
           const service = new PropertyService()
-          const resultPromise = service.listProperties({}, { page, pageSize })
+          const result = await service.listProperties({}, { page, pageSize })
 
-          // Yield to the event loop so the async function runs up to Promise.all
-          await Promise.resolve()
-
-          // Both queries must be initiated before either resolves
-          expect(findStarted).toBe(true)
-          expect(countStarted).toBe(true)
-
-          // Resolve both so the test can finish
-          findResolve([])
-          countResolve(0)
-
-          await resultPromise
+          expect(MockedPropertyModel.aggregate).toHaveBeenCalledTimes(1)
+          expect(result).toMatchObject({
+            data: [],
+            total: 0,
+            page,
+            pageSize,
+          })
         }
       ),
       { numRuns: 100 },
@@ -113,16 +91,18 @@ describe('UserService — property tests', () => {
     jest.clearAllMocks()
   })
 
-  // Feature: clean-architecture-refactor, Property 2: Service throws AppError(404) when Mongoose findOne returns null
-  it('Property 2: throws AppError(404) when findOne/findOneAndDelete returns null', async () => {
+  // Feature: clean-architecture-refactor, Property 2: Service throws AppError(404) when findById/findByIdAndDelete returns null
+  it('Property 2: throws AppError(404) when findById/findByIdAndDelete returns null', async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.string({ minLength: 1 }),
         async (id: string) => {
-          // All findOne calls return null:
-          // - duplicate username/username checks return null (no conflict)
-          // - final findOne({ id }) returns null → triggers 404
-          ;(MockedUserModel.findOne as jest.Mock).mockResolvedValue(null)
+          // findOne for username check returns null (no conflict)
+          // findById for the actual user lookup returns null → triggers 404
+          ;(MockedUserModel.findOne as jest.Mock).mockReturnValue({
+            lean: () => Promise.resolve(null),
+          })
+          ;(MockedUserModel.findById as jest.Mock).mockResolvedValue(null)
 
           const service = new UserService()
 
@@ -131,7 +111,7 @@ describe('UserService — property tests', () => {
           expect((errUpdate as AppError).httpStatus).toBe(404)
 
           // deleteUser: use a different requesterId to avoid the 403 self-deletion guard
-          ;(MockedUserModel.findOneAndDelete as jest.Mock).mockResolvedValue(null)
+          ;(MockedUserModel.findByIdAndDelete as jest.Mock).mockResolvedValue(null)
           const errDelete = await service.deleteUser(id, id + '-other').catch((e: unknown) => e)
           expect(errDelete).toBeInstanceOf(AppError)
           expect((errDelete as AppError).httpStatus).toBe(404)

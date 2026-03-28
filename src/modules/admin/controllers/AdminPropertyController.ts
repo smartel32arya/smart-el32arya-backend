@@ -3,6 +3,7 @@ import { asyncHandler } from '../../../middleware/asyncHandler'
 import { AdminPropertyService } from '../services/AdminPropertyService'
 import { IProperty, PropertyFilter, PropertyPagination } from '../../../types/property.types'
 import { AuthRequest } from '../../../types/express'
+import { uploadToCloudinary, uploadVideoToCloudinary } from '../../../middleware/imageUploader'
 
 const service = new AdminPropertyService()
 
@@ -46,31 +47,62 @@ export class AdminPropertyController {
     }
   })
 
+  // Task 6.1: createProperty — reads req.body as JSON, returns 201
   createProperty = asyncHandler(async (req: Request, res: Response) => {
     const authReq = req as AuthRequest
-    const fields = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined
-
-    const property = await service.create({
-      body:       req.body as Record<string, string>,
-      imageFiles: fields?.images ?? [],
-      videoFiles: fields?.video  ?? [],
-      addedBy:    authReq.user!.id,
-    })
-
+    const property = await service.createProperty({ body: req.body, addedBy: authReq.user!.id })
     res.status(201).json(property)
   })
 
-  updateProperty = asyncHandler(async (req: Request, res: Response) => {
-    const fields = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined
+  // Task 6.2: updatePropertyData — replaces updateProperty, reads req.body as JSON, returns 200
+  updatePropertyData = asyncHandler(async (req: Request, res: Response) => {
     const existing = req.property as unknown as IProperty
+    const property = await service.updatePropertyData(req.params.id, { body: req.body, existing })
+    res.json(property)
+  })
 
-    const property = await service.update(req.params.id, {
-      body:       req.body as Record<string, string>,
-      imageFiles: fields?.images ?? [],
-      videoFiles: fields?.video  ?? [],
-      existing,
-    })
+  // Task 6.3: uploadImages — validates files present, calls service.uploadImages, returns 200
+  uploadImages = asyncHandler(async (req: Request, res: Response) => {
+    const files = (req.files as { [f: string]: Express.Multer.File[] })?.images ?? []
+    if (files.length === 0) { res.status(400).json({ message: 'لم يتم إرسال أي صور' }); return }
+    const existing = req.property as unknown as IProperty
+    const property = await service.uploadImages(req.params.id, { imageFiles: files, existing })
+    res.json(property)
+  })
 
+  // Task 6.4: replaceImages — parses optional existingImages, calls service.replaceImages, returns 200
+  replaceImages = asyncHandler(async (req: Request, res: Response) => {
+    const files = (req.files as { [f: string]: Express.Multer.File[] })?.images ?? []
+    const existing = req.property as unknown as IProperty
+    const existingImages = req.body.existingImages !== undefined
+      ? JSON.parse(req.body.existingImages as string) as string[]
+      : undefined
+    const property = await service.replaceImages(req.params.id, { imageFiles: files, existingImages, existing })
+    res.json(property)
+  })
+
+  // Task 6.5: uploadVideo — validates file present, calls service.uploadVideo, returns 200
+  uploadVideo = asyncHandler(async (req: Request, res: Response) => {
+    const files = (req.files as { [f: string]: Express.Multer.File[] })?.video ?? []
+    if (files.length === 0) { res.status(400).json({ message: 'لم يتم إرسال أي فيديو' }); return }
+    const existing = req.property as unknown as IProperty
+    const property = await service.uploadVideo(req.params.id, { videoFile: files[0], existing })
+    res.json(property)
+  })
+
+  // Task 6.6: replaceVideo — validates file present, calls service.replaceVideo, returns 200
+  replaceVideo = asyncHandler(async (req: Request, res: Response) => {
+    const files = (req.files as { [f: string]: Express.Multer.File[] })?.video ?? []
+    if (files.length === 0) { res.status(400).json({ message: 'لم يتم إرسال أي فيديو' }); return }
+    const existing = req.property as unknown as IProperty
+    const property = await service.replaceVideo(req.params.id, { videoFile: files[0], existing })
+    res.json(property)
+  })
+
+  // Task 6.7: removeVideo — calls service.removeVideo, returns 200
+  removeVideo = asyncHandler(async (req: Request, res: Response) => {
+    const existing = req.property as unknown as IProperty
+    const property = await service.removeVideo(req.params.id, existing)
     res.json(property)
   })
 
@@ -78,5 +110,20 @@ export class AdminPropertyController {
     const existing = req.property as unknown as IProperty
     await service.delete(req.params.id, existing)
     res.status(200).json({ message: 'تم حذف العقار بنجاح' })
+  })
+
+  // Standalone upload — returns a Cloudinary URL without associating it with a property
+  uploadMedia = asyncHandler(async (req: Request, res: Response) => {
+    const files = req.files as { [f: string]: Express.Multer.File[] } | undefined
+    const imageFile = files?.file?.[0]
+    if (!imageFile) {
+      res.status(400).json({ message: 'لم يتم إرسال أي ملف' })
+      return
+    }
+    const isVideo = imageFile.fieldname === 'file' && imageFile.mimetype.startsWith('video/')
+    const url = isVideo
+      ? await uploadVideoToCloudinary(imageFile.buffer)
+      : await uploadToCloudinary(imageFile.buffer, imageFile.mimetype)
+    res.json({ url })
   })
 }
