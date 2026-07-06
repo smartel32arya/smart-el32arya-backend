@@ -67,12 +67,13 @@ export class PropertyService {
   async listProperties(
     filter: PropertyFilter,
     pagination: PropertyPagination,
+    applyLimits: boolean = false
   ): Promise<PropertyListResult> {
     const query: Record<string, unknown> = {}
     if (filter.active !== undefined) query.active = filter.active
-    if (filter.neighborhood)        query.neighborhood = filter.neighborhood
-    if (filter.type)                query.type = filter.type
-    if (filter.addedBy)             query.addedBy = new Types.ObjectId(filter.addedBy)
+    if (filter.neighborhood) query.neighborhood = filter.neighborhood
+    if (filter.type) query.type = filter.type
+    if (filter.addedBy) query.addedBy = new Types.ObjectId(filter.addedBy)
     if (filter.priceMin !== undefined || filter.priceMax !== undefined) {
       query.price = {}
       if (filter.priceMin !== undefined) (query.price as Record<string, number>).$gte = filter.priceMin
@@ -80,10 +81,10 @@ export class PropertyService {
     }
 
     const sortMap: Record<string, Record<string, SortOrder>> = {
-      newest:       { createdAt: -1 },
-      'price-asc':  { price: 1 },
+      newest: { createdAt: -1 },
+      'price-asc': { price: 1 },
       'price-desc': { price: -1 },
-      'area-desc':  { area: -1 },
+      'area-desc': { area: -1 },
     }
     const sort: Record<string, SortOrder> = filter.sort ? sortMap[filter.sort] : { createdAt: -1 }
     const skip = (pagination.page - 1) * pagination.pageSize
@@ -91,7 +92,7 @@ export class PropertyService {
 
     // Use aggregation to accurately count and paginate after joining with active users.
     // $lookup + $match ensures total reflects only properties with active owners.
-    const pipeline = [
+    const pipeline: any[] = [
       { $match: query },
       {
         $lookup: {
@@ -112,25 +113,48 @@ export class PropertyService {
           ],
         },
       },
-      {
-        $facet: {
-          data: [
-            { $sort: sort },
-            { $skip: skip },
-            { $limit: pagination.pageSize },
-          ],
-          count: [{ $count: 'total' }],
-          activeCount: [
-            { $match: { active: true } },
-            { $count: 'total' }
-          ],
-          featuredCount: [
-            { $match: { featured: true } },
-            { $count: 'total' }
-          ],
-        },
-      },
     ]
+
+    if (applyLimits) {
+      pipeline.push(
+        {
+          $setWindowFields: {
+            partitionBy: "$owner._id",
+            sortBy: { createdAt: -1 },
+            output: { rank: { $documentNumber: {} } }
+          }
+        },
+        {
+          $match: {
+            $expr: {
+              $or: [
+                { $eq: ["$owner.role", "super_admin"] },
+                { $lte: [ "$rank", { $ifNull: [ "$owner.activePropertiesLimit", 3 ] } ] }
+              ]
+            }
+          }
+        }
+      )
+    }
+
+    pipeline.push({
+      $facet: {
+        data: [
+          { $sort: sort },
+          { $skip: skip },
+          { $limit: pagination.pageSize },
+        ],
+        count: [{ $count: 'total' }],
+        activeCount: [
+          { $match: { active: true } },
+          { $count: 'total' }
+        ],
+        featuredCount: [
+          { $match: { featured: true } },
+          { $count: 'total' }
+        ],
+      },
+    })
 
     const [result] = await PropertyModel.aggregate(pipeline as import('mongoose').PipelineStage[])
     const docs = (result?.data ?? []) as (IProperty & { owner: PopulatedUser })[]
@@ -189,9 +213,9 @@ export class PropertyService {
   ): Promise<{ data: PropertyAdminView[]; total: number; totalActive: number; totalFeatured: number; page: number; pageSize: number; totalPages: number }> {
     const query: Record<string, unknown> = {}
     if (filter.active !== undefined) query.active = filter.active
-    if (filter.neighborhood)        query.neighborhood = filter.neighborhood
-    if (filter.type)                query.type = filter.type
-    if (filter.addedBy)             query.addedBy = new Types.ObjectId(filter.addedBy)
+    if (filter.neighborhood) query.neighborhood = filter.neighborhood
+    if (filter.type) query.type = filter.type
+    if (filter.addedBy) query.addedBy = new Types.ObjectId(filter.addedBy)
     if (filter.priceMin !== undefined || filter.priceMax !== undefined) {
       query.price = {}
       if (filter.priceMin !== undefined) (query.price as Record<string, number>).$gte = filter.priceMin
@@ -199,10 +223,10 @@ export class PropertyService {
     }
 
     const sortMap: Record<string, Record<string, SortOrder>> = {
-      newest:       { createdAt: -1 },
-      'price-asc':  { price: 1 },
+      newest: { createdAt: -1 },
+      'price-asc': { price: 1 },
       'price-desc': { price: -1 },
-      'area-desc':  { area: -1 },
+      'area-desc': { area: -1 },
     }
     const sort: Record<string, SortOrder> = filter.sort ? sortMap[filter.sort] : { createdAt: -1 }
     const skip = (pagination.page - 1) * pagination.pageSize

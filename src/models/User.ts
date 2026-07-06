@@ -16,6 +16,7 @@ const UserSchema = new Schema<IUser & Document>(
     },
     active: { type: Boolean, default: true },
     expiresAt: { type: Date, default: null },
+    activePropertiesLimit: { type: Number, default: 3 },
     createdAt: { type: String, default: () => new Date().toISOString() },
   },
   {

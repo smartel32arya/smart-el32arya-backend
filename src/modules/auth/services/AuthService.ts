@@ -36,4 +36,30 @@ export class AuthService {
 
     return { token, user: stripPassword(user) }
   }
+
+  async register(data: any): Promise<SafeUser> {
+    const { name, username, password, phone } = data
+
+    const existing = await UserModel.findOne({ username }).lean()
+    if (existing) {
+      throw new AppError(409, 'اسم المستخدم مستخدم بالفعل')
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10)
+    
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 7)
+
+    const user = await UserModel.create({
+      name,
+      username,
+      password: hashedPassword,
+      phone,
+      role: 'property_admin',
+      active: true,
+      expiresAt
+    })
+
+    return stripPassword(user.toObject() as unknown as IUser)
+  }
 }

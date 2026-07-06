@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { asyncHandler } from '../../../middleware/asyncHandler'
 import { AuthService } from '../services/AuthService'
-import { loginSchema } from '../validators/auth.schemas'
+import { loginSchema, registerSchema } from '../validators/auth.schemas'
 import { AppError } from '../../../errors/AppError'
 
 const service = new AuthService()
@@ -14,5 +14,13 @@ export class AuthController {
     const { username, password } = parsed.data
     const result = await service.login(username, password)
     res.json(result)
+  })
+
+  register = asyncHandler(async (req: Request, res: Response) => {
+    const parsed = registerSchema.safeParse(req.body)
+    if (!parsed.success) throw new AppError(400, parsed.error.issues[0].message)
+
+    const result = await service.register(parsed.data)
+    res.status(201).json(result)
   })
 }

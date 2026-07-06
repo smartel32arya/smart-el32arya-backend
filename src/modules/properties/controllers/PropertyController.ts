@@ -2,6 +2,8 @@ import { Request, Response } from 'express'
 import { asyncHandler } from '../../../middleware/asyncHandler'
 import { PropertyService } from '../services/PropertyService'
 import { PropertyFilter, PropertyPagination } from '../../../types/property.types'
+import { AuthRequest } from '../../../types/express'
+import UserModel from '../../../models/User'
 
 const service = new PropertyService()
 
@@ -20,12 +22,12 @@ export class PropertyController {
 
     const filter: PropertyFilter = {}
 
-    if (isActive === 'true')       filter.active = true
+    if (isActive === 'true') filter.active = true
     else if (isActive === 'false') filter.active = false
-    else                           filter.active = true // default: only show active properties
+    else filter.active = true // default: only show active properties
 
     if (neighborhood) filter.neighborhood = neighborhood as string
-    if (type)         filter.type = type as string
+    if (type) filter.type = type as string
 
     if (priceRange && priceRange !== 'all') {
       const parts = (priceRange as string).split('-')
@@ -41,11 +43,15 @@ export class PropertyController {
 
     if (sort) filter.sort = sort as PropertyFilter['sort']
 
+    if (req.query.addedBy) {
+      filter.addedBy = req.query.addedBy as string
+    }
+
     const pagination: PropertyPagination = {
-      page:     Math.max(1, parseInt(pageQ as string) || 1),
+      page: Math.max(1, parseInt(pageQ as string) || 1),
       pageSize: Math.max(1, parseInt(pageSizeQ as string) || 10),
     }
 
-    res.json(await service.listProperties(filter, pagination))
+    res.json(await service.listProperties(filter, pagination, true))
   })
 }

@@ -28,6 +28,7 @@ Obtain a token via [POST /api/auth/login](#post-apiauthlogin).
   - [GET /api/properties/:id](#get-apipropertiesid)
 - [Auth](#auth)
   - [POST /api/auth/login](#post-apiauthlogin)
+  - [POST /api/auth/register](#post-apiauthregister)
 - [Users (Profile)](#users-profile)
   - [GET /api/users/me](#get-apiusersme)
   - [PUT /api/users/me](#put-apiusersme)
@@ -164,6 +165,59 @@ Authenticates a user and returns a JWT token.
 
 ```json
 { "message": "انتهت صلاحية الحساب" }
+```
+
+---
+
+### POST /api/auth/register
+
+Registers a new property admin account. 
+
+**Request Body** `application/json`
+
+```json
+{
+  "name": "أحمد علي",
+  "username": "ahmed_ali",
+  "phone": "01012345678",
+  "password": "secret123"
+}
+```
+
+Required fields:
+- `name` (string, min 2 chars)
+- `username` (string, min 3 chars, alphanumeric + underscore only)
+- `phone` (string) — valid Egyptian mobile number: `01[0125]XXXXXXXX` or `+201[0125]XXXXXXXX`
+- `password` (string, min 6 chars)
+
+Server side forced defaults:
+- `role` is strictly hardcoded to `property_admin`.
+- `active` is set to `true`.
+- `expiresAt` is set to exactly 7 days from the current date and time.
+
+**Response `201`**
+
+```json
+{
+  "_id": "6650a1b2c3d4e5f6a7b8c9d0",
+  "name": "أحمد علي",
+  "username": "ahmed_ali",
+  "phone": "01012345678",
+  "role": "property_admin",
+  "active": true,
+  "expiresAt": "2026-07-12T00:00:00.000Z",
+  "createdAt": "2026-07-05T00:00:00.000Z"
+}
+```
+
+Returns the created [User object](#user-object) (no `password` field).
+
+**Response `400`** — validation error (missing or invalid fields)
+
+**Response `409`**
+
+```json
+{ "message": "اسم المستخدم مستخدم بالفعل" }
 ```
 
 ---

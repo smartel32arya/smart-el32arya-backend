@@ -7,6 +7,7 @@ export interface IUser {
   role: 'super_admin' | 'property_admin'
   active: boolean
   expiresAt: Date | null
+  activePropertiesLimit: number
   createdAt: string
 }
 
@@ -14,5 +15,6 @@ export type CreateUserDto = Pick<IUser, 'name' | 'password' | 'role' | 'phone'> 
   username?: string
   active?: boolean
   expiresAt?: Date | null
+  activePropertiesLimit?: number
 }
 export type UpdateUserDto = Partial<Omit<IUser, '_id' | 'createdAt'>>

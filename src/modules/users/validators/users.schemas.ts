@@ -24,6 +24,7 @@ export const createUserSchema = z.object({
   }),
   active: z.boolean().optional().default(true),
   expiresAt: z.coerce.date({ error: 'تاريخ انتهاء الصلاحية غير صالح' }).nullable().optional(),
+  activePropertiesLimit: z.number().int().min(0).optional().default(3),
 })
 
 export const updateUserSchema = createUserSchema.partial()

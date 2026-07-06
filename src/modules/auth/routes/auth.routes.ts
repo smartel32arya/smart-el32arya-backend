@@ -6,3 +6,4 @@ const controller = new AuthController()
 export const authRouter = Router()
 
 authRouter.post('/login', controller.login)
+authRouter.post('/register', controller.register)

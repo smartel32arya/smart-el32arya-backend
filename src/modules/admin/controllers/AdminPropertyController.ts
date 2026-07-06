@@ -4,6 +4,9 @@ import { AdminPropertyService } from '../services/AdminPropertyService'
 import { IProperty, PropertyFilter, PropertyPagination } from '../../../types/property.types'
 import { AuthRequest } from '../../../types/express'
 import { uploadToCloudinary, uploadVideoToCloudinary } from '../../../middleware/imageUploader'
+import UserModel from '../../../models/User'
+import PropertyModel from '../../../models/Property'
+import { AppError } from '../../../errors/AppError'
 
 const service = new AdminPropertyService()
 
@@ -14,7 +17,7 @@ export class AdminPropertyController {
 
     const filter: PropertyFilter = {}
     if (neighborhood) filter.neighborhood = neighborhood as string
-    if (type)         filter.type = type as string
+    if (type) filter.type = type as string
     if (priceRange && priceRange !== 'all') {
       const parts = (priceRange as string).split('-')
       if (parts.length === 2) {
@@ -26,7 +29,7 @@ export class AdminPropertyController {
     if (sort) filter.sort = sort as PropertyFilter['sort']
 
     const pagination: PropertyPagination = {
-      page:     Math.max(1, parseInt(pageQ as string) || 1),
+      page: Math.max(1, parseInt(pageQ as string) || 1),
       pageSize: Math.max(1, parseInt(pageSizeQ as string) || 10),
     }
 
@@ -50,13 +53,38 @@ export class AdminPropertyController {
   // Task 6.1: createProperty — reads req.body as JSON, returns 201
   createProperty = asyncHandler(async (req: Request, res: Response) => {
     const authReq = req as AuthRequest
+    if (authReq.user!.role !== 'super_admin') {
+      req.body.featured = false
+
+      if (req.body.active !== false) {
+        const userDoc = await UserModel.findById(authReq.user!.id).lean()
+        const limit = userDoc?.activePropertiesLimit ?? 3
+        const activeCount = await PropertyModel.countDocuments({ addedBy: authReq.user!.id, active: true })
+        if (activeCount >= limit) {
+          throw new AppError(403, `لا يمكنك إضافة أكثر من ${limit} عقارات نشطة. يرجى إيقاف بعض العقارات أولاً.`)
+        }
+      }
+    }
     const property = await service.createProperty({ body: req.body, addedBy: authReq.user!.id })
     res.status(201).json(property)
   })
 
   // Task 6.2: updatePropertyData — replaces updateProperty, reads req.body as JSON, returns 200
   updatePropertyData = asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthRequest
     const existing = req.property as unknown as IProperty
+    if (authReq.user!.role !== 'super_admin') {
+      delete req.body.featured
+
+      if (req.body.active === true && existing.active === false) {
+        const userDoc = await UserModel.findById(authReq.user!.id).lean()
+        const limit = userDoc?.activePropertiesLimit ?? 3
+        const activeCount = await PropertyModel.countDocuments({ addedBy: authReq.user!.id, active: true })
+        if (activeCount >= limit) {
+          throw new AppError(403, `لا يمكنك تفعيل أكثر من ${limit} عقارات. يرجى إيقاف بعض العقارات أولاً.`)
+        }
+      }
+    }
     const property = await service.updatePropertyData(req.params.id, { body: req.body, existing })
     res.json(property)
   })

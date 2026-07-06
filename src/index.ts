@@ -31,11 +31,11 @@ function createApp(): express.Application {
   })
 
   // Routes
-  app.use('/api/properties',       propertiesRouter)
-  app.use('/api/auth',             authRouter)
-  app.use('/api/users',            usersRouter)
+  app.use('/api/properties', propertiesRouter)
+  app.use('/api/auth', authRouter)
+  app.use('/api/users', usersRouter)
   app.use('/api/admin/properties', authenticate, adminPropertiesRouter)
-  app.use('/api/admin/users',      authenticate, adminUsersRouter)
+  app.use('/api/admin/users', authenticate, adminUsersRouter)
 
   // Global error handler — must be last
   app.use(errorHandler)
