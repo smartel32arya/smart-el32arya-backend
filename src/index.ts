@@ -12,6 +12,7 @@ import { authRouter } from './modules/auth/routes/auth.routes'
 import { usersRouter } from './modules/users/routes/users.routes'
 import { adminPropertiesRouter } from './modules/admin/routes/adminProperties.routes'
 import { adminUsersRouter } from './modules/admin/routes/adminUsers.routes'
+import { cloudinaryRouter } from './modules/cloudinary/routes/cloudinary.routes'
 
 // ─── App factory ─────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ function createApp(): express.Application {
   app.use('/api/users', usersRouter)
   app.use('/api/admin/properties', authenticate, adminPropertiesRouter)
   app.use('/api/admin/users', authenticate, adminUsersRouter)
+  app.use('/api/cloudinary', authenticate, cloudinaryRouter)
 
   // Global error handler — must be last
   app.use(errorHandler)

@@ -182,6 +182,7 @@ export class PropertyService {
   async getFeatured(limit: number): Promise<PropertyWithContact[]> {
     const docs = await PropertyModel
       .find({ active: true, featured: true })
+      .sort({ createdAt: -1 })
       .limit(limit)
       .populate(activeUserPopulate())
       .lean()

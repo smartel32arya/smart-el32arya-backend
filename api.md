@@ -35,6 +35,7 @@ Obtain a token via [POST /api/auth/login](#post-apiauthlogin).
 - [Admin — Properties](#admin--properties)
   - [GET /api/admin/properties](#get-apiadminproperties)
   - [POST /api/admin/properties/upload](#post-apiadminpropertiesupload)
+  - [GET /api/cloudinary/sign](#get-apicloudinarysign)
   - [POST /api/admin/properties](#post-apiadminproperties)
   - [GET /api/admin/properties/:id](#get-apiadminpropertiesid)
   - [PUT /api/admin/properties/:id](#put-apiadminpropertiesid)
@@ -316,6 +317,26 @@ Uploads a single image or video file to Cloudinary and returns its URL. Use this
 ```
 
 **Response `400`** — no file provided, unsupported MIME type, or file too large
+
+---
+
+### GET /api/cloudinary/sign
+
+Generates a signature for direct Cloudinary uploads from the frontend.
+
+**Auth** — Bearer token required
+
+**Response `200`**
+
+```json
+{
+  "signature": "c2b0e...",
+  "timestamp": 1690000000,
+  "api_key": "123456789",
+  "cloud_name": "smart-realestate",
+  "folder": "smart-realestate/properties"
+}
+```
 
 ---
 
