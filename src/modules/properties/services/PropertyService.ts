@@ -1,4 +1,5 @@
 import PropertyModel from '../../../models/Property'
+import UserModel from '../../../models/User'
 import { AppError } from '../../../errors/AppError'
 import { formatPrice } from '../../../utils/formatPrice'
 import { SortOrder, Types } from 'mongoose'
@@ -73,7 +74,18 @@ export class PropertyService {
     if (filter.active !== undefined) query.active = filter.active
     if (filter.neighborhood) query.neighborhood = filter.neighborhood
     if (filter.type) query.type = filter.type
-    if (filter.addedBy) query.addedBy = new Types.ObjectId(filter.addedBy)
+    if (filter.addedBy) {
+      if (Types.ObjectId.isValid(filter.addedBy)) {
+        query.addedBy = new Types.ObjectId(filter.addedBy)
+      } else {
+        const userDoc = await UserModel.findOne({ phone: filter.addedBy }).lean()
+        if (userDoc) {
+          query.addedBy = userDoc._id
+        } else {
+          query.addedBy = new Types.ObjectId()
+        }
+      }
+    }
     if (filter.priceMin !== undefined || filter.priceMax !== undefined) {
       query.price = {}
       if (filter.priceMin !== undefined) (query.price as Record<string, number>).$gte = filter.priceMin
@@ -216,7 +228,18 @@ export class PropertyService {
     if (filter.active !== undefined) query.active = filter.active
     if (filter.neighborhood) query.neighborhood = filter.neighborhood
     if (filter.type) query.type = filter.type
-    if (filter.addedBy) query.addedBy = new Types.ObjectId(filter.addedBy)
+    if (filter.addedBy) {
+      if (Types.ObjectId.isValid(filter.addedBy)) {
+        query.addedBy = new Types.ObjectId(filter.addedBy)
+      } else {
+        const userDoc = await UserModel.findOne({ phone: filter.addedBy }).lean()
+        if (userDoc) {
+          query.addedBy = userDoc._id
+        } else {
+          query.addedBy = new Types.ObjectId()
+        }
+      }
+    }
     if (filter.priceMin !== undefined || filter.priceMax !== undefined) {
       query.price = {}
       if (filter.priceMin !== undefined) (query.price as Record<string, number>).$gte = filter.priceMin

@@ -1,7 +1,6 @@
 export interface IUser {
   _id: string
   name: string
-  username: string
   password: string
   phone: string
   role: 'super_admin' | 'property_admin'
@@ -12,7 +11,6 @@ export interface IUser {
 }
 
 export type CreateUserDto = Pick<IUser, 'name' | 'password' | 'role' | 'phone'> & {
-  username?: string
   active?: boolean
   expiresAt?: Date | null
   activePropertiesLimit?: number

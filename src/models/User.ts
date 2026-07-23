@@ -6,9 +6,8 @@ export type { IUser }
 const UserSchema = new Schema<IUser & Document>(
   {
     name: { type: String, required: true },
-    username: { type: String, required: false, unique: true, sparse: true },
     password: { type: String, required: true },
-    phone: { type: String, required: true },
+    phone: { type: String, required: true, unique: true, index: true },
     role: {
       type: String,
       enum: ['super_admin', 'property_admin'],

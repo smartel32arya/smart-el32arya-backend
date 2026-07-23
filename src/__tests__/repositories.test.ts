@@ -79,7 +79,6 @@ describe('Property 2: Service throws AppError(404) on missing document', () => {
     // Create a requester so self-deletion check doesn't trigger
     const requester = await userService.createUser({
       name: 'Requester',
-      username: 'requester_user',
       password: 'pass1234',
       phone: '01000000000',
       role: 'super_admin',

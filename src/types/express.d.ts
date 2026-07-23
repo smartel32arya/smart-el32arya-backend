@@ -2,7 +2,7 @@ import { Request } from 'express'
 
 export interface JwtPayload {
   id: string            // MongoDB ObjectId as string
-  username?: string
+  phone: string
   role: 'super_admin' | 'property_admin'
   name: string
 }

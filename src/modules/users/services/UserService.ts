@@ -17,10 +17,9 @@ export class UserService {
   }
 
   async createUser(dto: CreateUserDto): Promise<SafeUser> {
-
-    if (dto.username) {
-      const existingByUsername = await UserModel.findOne({ username: dto.username }).lean()
-      if (existingByUsername) throw new AppError(409, 'اسم المستخدم مستخدم بالفعل')
+    if (dto.phone) {
+      const existingByPhone = await UserModel.findOne({ phone: dto.phone }).lean()
+      if (existingByPhone) throw new AppError(409, 'رقم الهاتف مستخدم بالفعل')
     }
 
     // super_admin never expires — ignore any expiresAt passed in
@@ -34,7 +33,7 @@ export class UserService {
     } catch (err: unknown) {
       if (typeof err === 'object' && err !== null && 'code' in err && (err as { code: number }).code === 11000) {
         const keyValue = (err as { keyValue?: Record<string, unknown> }).keyValue ?? {}
-        if (keyValue.username) throw new AppError(409, 'اسم المستخدم مستخدم بالفعل')
+        if (keyValue.phone) throw new AppError(409, 'رقم الهاتف مستخدم بالفعل')
         throw new AppError(409, 'البيانات مستخدمة بالفعل')
       }
       throw err
@@ -44,11 +43,10 @@ export class UserService {
   }
 
   async updateUser(id: string, dto: UpdateUserDto): Promise<SafeUser> {
-
-    if (dto.username) {
-      const existing = await UserModel.findOne({ username: dto.username }).lean()
+    if (dto.phone) {
+      const existing = await UserModel.findOne({ phone: dto.phone }).lean()
       const existingUser = existing as unknown as IUser | null
-      if (existingUser && existingUser._id.toString() !== id) throw new AppError(409, 'اسم المستخدم مستخدم بالفعل')
+      if (existingUser && existingUser._id.toString() !== id) throw new AppError(409, 'رقم الهاتف مستخدم بالفعل')
     }
 
     const doc = await UserModel.findById(id)
@@ -73,7 +71,7 @@ export class UserService {
     } catch (err: unknown) {
       if (typeof err === 'object' && err !== null && 'code' in err && (err as { code: number }).code === 11000) {
         const keyValue = (err as { keyValue?: Record<string, unknown> }).keyValue ?? {}
-        if (keyValue.username) throw new AppError(409, 'اسم المستخدم مستخدم بالفعل')
+        if (keyValue.phone) throw new AppError(409, 'رقم الهاتف مستخدم بالفعل')
         throw new AppError(409, 'البيانات مستخدمة بالفعل')
       }
       throw err

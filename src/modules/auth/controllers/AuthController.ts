@@ -11,8 +11,8 @@ export class AuthController {
     const parsed = loginSchema.safeParse(req.body)
     if (!parsed.success) throw new AppError(400, parsed.error.issues[0].message)
 
-    const { username, password } = parsed.data
-    const result = await service.login(username, password)
+    const { phone, password } = parsed.data
+    const result = await service.login(phone, password)
     res.json(result)
   })
 

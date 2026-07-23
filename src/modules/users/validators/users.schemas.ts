@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-const usernameRegex = /^[a-zA-Z0-9_]+$/
-
 // Egyptian WhatsApp numbers: 01[0125]XXXXXXXX or +201[0125]XXXXXXXX or 201[0125]XXXXXXXX
 const egyptianPhoneRegex = /^(\+?2)?01[0125][0-9]{8}$/
 
@@ -9,10 +7,6 @@ export const createUserSchema = z.object({
   name: z
     .string({ error: 'الاسم مطلوب' })
     .min(2, 'الاسم يجب أن يكون حرفين على الأقل'),
-  username: z
-    .string({ error: 'اسم المستخدم مطلوب' })
-    .min(3, 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل')
-    .regex(usernameRegex, 'اسم المستخدم يجب أن يحتوي على أحرف وأرقام وشرطة سفلية فقط'),
   phone: z
     .string({ error: 'رقم الواتساب مطلوب' })
     .regex(egyptianPhoneRegex, 'رقم الواتساب يجب أن يكون رقماً مصرياً صالحاً (مثال: 01012345678)'),

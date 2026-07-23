@@ -126,13 +126,12 @@ export async function seedDatabase(): Promise<void> {
   const hashedPassword = await bcrypt.hash('admin123', 10)
   const admin = await User.create({
     name: 'Super Admin',
-    username: 'admin',
     phone: '01012345678',
     password: hashedPassword,
     role: 'super_admin',
     active: true,
   })
-  console.log('Created super_admin user: admin')
+  console.log('Created super_admin user with phone: 01012345678')
 
   // Attach addedBy to every property
   const propertiesWithOwner = properties.map((p) => ({ ...p, addedBy: admin._id }))
